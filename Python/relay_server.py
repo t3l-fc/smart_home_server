@@ -29,32 +29,28 @@ app = Flask(__name__)
 
 # Initialize TinyTuya device
 device = tinytuya.Cloud(
-    ACCESS_ID,
-    ACCESS_KEY,
-    REGION
+    apiRegion=REGION,
+    apiKey=ACCESS_ID,
+    apiSecret=ACCESS_KEY,
+    apiDeviceID=DEVICE_ID
 )
 
 # Function to control the device
 def control_device(action):
     try:
         if action == "on":
-            # Turn on the smart plug
-            result = device.set_device_status(DEVICE_ID, {"switch_1": True})
+            # Turn on the smart plug using the command structure from your working code
+            command = {"commands": [{"code": "switch_1", "value": True}]}
+            result = device.sendcommand(DEVICE_ID, command)
             return {"status": "success", "action": "on", "result": result}
         elif action == "off":
-            # Turn off the smart plug
-            result = device.set_device_status(DEVICE_ID, {"switch_1": False})
+            # Turn off the smart plug using the command structure from your working code
+            command = {"commands": [{"code": "switch_1", "value": False}]}
+            result = device.sendcommand(DEVICE_ID, command)
             return {"status": "success", "action": "off", "result": result}
         elif action == "status":
-            # Get device status - let's try the correct method according to TinyTuya docs
-            # First, try to get all devices and filter for our device
-            all_devices = device.devices()
-            for dev in all_devices:
-                if dev.get('id') == DEVICE_ID:
-                    return {"status": "success", "action": "status", "result": dev}
-            
-            # If we didn't find our device, try getting it directly (another possible method)
-            result = device.deviceInfo(DEVICE_ID)
+            # Get device status using the method from your working code
+            result = device.getstatus(DEVICE_ID)
             return {"status": "success", "action": "status", "result": result}
         else:
             return {"status": "error", "message": "Invalid action"}
