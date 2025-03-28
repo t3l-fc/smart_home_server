@@ -1,6 +1,5 @@
 import os
 import json
-import time
 from flask import Flask, request, jsonify
 import tinytuya
 import paho.mqtt.client as mqtt
