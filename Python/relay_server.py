@@ -46,9 +46,15 @@ def control_device(action):
             result = device.set_device_status(DEVICE_ID, {"switch_1": False})
             return {"status": "success", "action": "off", "result": result}
         elif action == "status":
-            # Get device status using the correct method for Cloud object
-            # Using device_status instead of status or get_device_status
-            result = device.device_status(DEVICE_ID)
+            # Get device status - let's try the correct method according to TinyTuya docs
+            # First, try to get all devices and filter for our device
+            all_devices = device.devices()
+            for dev in all_devices:
+                if dev.get('id') == DEVICE_ID:
+                    return {"status": "success", "action": "status", "result": dev}
+            
+            # If we didn't find our device, try getting it directly (another possible method)
+            result = device.deviceInfo(DEVICE_ID)
             return {"status": "success", "action": "status", "result": result}
         else:
             return {"status": "error", "message": "Invalid action"}
