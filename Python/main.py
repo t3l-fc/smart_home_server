@@ -4,7 +4,7 @@ Smart Plug Controller - Main Entry Point
 """
 
 import os
-import sys
+import sys 
 from relay_server import app
 
 def main():

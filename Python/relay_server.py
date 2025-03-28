@@ -47,7 +47,7 @@ def control_device(action):
             return {"status": "success", "action": "off", "result": result}
         elif action == "status":
             # Get device status
-            result = device.status(DEVICE_ID)
+            result = device.get_device_status(DEVICE_ID)
             return {"status": "success", "action": "status", "result": result}
         else:
             return {"status": "error", "message": "Invalid action"}
