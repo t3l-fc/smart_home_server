@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from flask import Flask, request, jsonify
 import tinytuya
 import paho.mqtt.client as mqtt
@@ -8,10 +9,24 @@ from dotenv import load_dotenv
 # Load environment variables or use defaults
 load_dotenv()
 
-# Tuya device configuration
-DEVICE_IP = os.environ.get('DEVICE_IP', "192.168.86.249")
-DEVICE_ID = os.environ.get('DEVICE_ID', "eb06105cff43c50594rz5n")
-ACCESS_ID = os.environ.get('ACCESS_ID', "4kcffc9h34rwnswpncrj") 
+# Tuya device configurations
+DEVICES = {
+    'plug1': {
+        'id': os.environ.get('DEVICE1_ID', "eb06105cff43c50594rz5n"),
+        'name': "Cactus"
+    },
+    'plug2': {
+        'id': os.environ.get('DEVICE2_ID', "03310047840d8e87510e"),
+        'name': "Dino"
+    },
+    'plug3': {
+        'id': os.environ.get('DEVICE3_ID', "eb39191340ad46ad91wbug"),
+        'name': "Ananas"
+    }
+}
+
+# Common Tuya cloud configuration
+ACCESS_ID = os.environ.get('ACCESS_ID', "4kcffc9h34rwnswpncrj")
 ACCESS_KEY = os.environ.get('ACCESS_KEY', "d1dc602a4d684f8895e2fca36d8996d8")
 REGION = os.environ.get('REGION', "us")
 
@@ -26,35 +41,39 @@ MQTT_TOPIC_STATUS = os.environ.get('MQTT_TOPIC_STATUS', "tuya/status")
 # Initialize Flask app
 app = Flask(__name__)
 
-# Initialize TinyTuya device
+# Initialize TinyTuya cloud connection
 device = tinytuya.Cloud(
     apiRegion=REGION,
     apiKey=ACCESS_ID,
     apiSecret=ACCESS_KEY,
-    apiDeviceID=DEVICE_ID
+    apiDeviceID=DEVICES['plug1']['id']  # Default device ID
 )
 
-# Function to control the device
-def control_device(action):
+def control_single_device(device_id, action):
+    """Control a single device"""
     try:
         if action == "on":
-            # Turn on the smart plug using the command structure from your working code
-            command = {"commands": [{"code": "switch_1", "value": True}]}
-            result = device.sendcommand(DEVICE_ID, command)
+            result = device.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": True}]})
             return {"status": "success", "action": "on", "result": result}
         elif action == "off":
-            # Turn off the smart plug using the command structure from your working code
-            command = {"commands": [{"code": "switch_1", "value": False}]}
-            result = device.sendcommand(DEVICE_ID, command)
+            result = device.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": False}]})
             return {"status": "success", "action": "off", "result": result}
         elif action == "status":
-            # Get device status using the method from your working code
-            result = device.getstatus(DEVICE_ID)
+            result = device.getstatus(device_id)
             return {"status": "success", "action": "status", "result": result}
         else:
             return {"status": "error", "message": "Invalid action"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+def control_all_devices(action):
+    """Control all devices simultaneously"""
+    results = {}
+    for device_key, device_info in DEVICES.items():
+        if device_info['id']:  # Only control devices with valid IDs
+            result = control_single_device(device_info['id'], action)
+            results[device_key] = result
+    return results
 
 # MQTT client setup
 if MQTT_BROKER:
@@ -73,7 +92,7 @@ if MQTT_BROKER:
             payload = json.loads(msg.payload.decode())
             action = payload.get("action")
             if action:
-                result = control_device(action)
+                result = control_all_devices(action)
                 # Publish the result to the status topic
                 client.publish(MQTT_TOPIC_STATUS, json.dumps(result))
         except Exception as e:
@@ -95,22 +114,83 @@ if MQTT_BROKER:
 def index():
     return "Tuya Smart Plug Relay Server is running!"
 
-@app.route('/api/control', methods=['POST'])
-def api_control():
+@app.route('/api/control/<device_id>', methods=['POST'])
+def api_control_single(device_id):
+    """Control a specific device"""
     data = request.json
     action = data.get('action')
+    
     if not action:
         return jsonify({"status": "error", "message": "No action specified"}), 400
     
-    result = control_device(action)
+    # Check if device exists
+    device_found = False
+    device_actual_id = None
+    for device_info in DEVICES.values():
+        if device_info['id'] == device_id or device_info.get('name', '').lower() == device_id.lower():
+            device_found = True
+            device_actual_id = device_info['id']
+            break
+    
+    if not device_found:
+        return jsonify({"status": "error", "message": "Device not found"}), 404
+    
+    result = control_single_device(device_actual_id, action)
     return jsonify(result)
 
-@app.route('/api/status', methods=['GET'])
-def api_status():
-    result = control_device("status")
+@app.route('/api/control/all', methods=['POST'])
+def api_control_all():
+    """Control all devices"""
+    data = request.json
+    action = data.get('action')
+    
+    if not action:
+        return jsonify({"status": "error", "message": "No action specified"}), 400
+    
+    results = control_all_devices(action)
+    return jsonify({"status": "success", "results": results})
+
+@app.route('/api/status/<device_id>', methods=['GET'])
+def api_status_single(device_id):
+    """Get status of a specific device"""
+    # Check if device exists
+    device_found = False
+    device_actual_id = None
+    for device_info in DEVICES.values():
+        if device_info['id'] == device_id or device_info.get('name', '').lower() == device_id.lower():
+            device_found = True
+            device_actual_id = device_info['id']
+            break
+    
+    if not device_found:
+        return jsonify({"status": "error", "message": "Device not found"}), 404
+    
+    result = control_single_device(device_actual_id, "status")
     return jsonify(result)
 
-# Health check endpoint for monitoring
+@app.route('/api/status/all', methods=['GET'])
+def api_status_all():
+    """Get status of all devices"""
+    results = {}
+    for device_key, device_info in DEVICES.items():
+        if device_info['id']:  # Only check devices with valid IDs
+            result = control_single_device(device_info['id'], "status")
+            results[device_key] = result
+    return jsonify({"status": "success", "results": results})
+
+@app.route('/api/devices', methods=['GET'])
+def api_list_devices():
+    """List all available devices"""
+    device_list = {}
+    for key, info in DEVICES.items():
+        if info['id']:  # Only include devices with valid IDs
+            device_list[key] = {
+                'name': info['name'],
+                'id': info['id']
+            }
+    return jsonify({"status": "success", "devices": device_list})
+
+# Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"}), 200
