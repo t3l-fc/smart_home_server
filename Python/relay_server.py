@@ -3,7 +3,6 @@ import json
 import time
 from flask import Flask, request, jsonify
 import tinytuya
-import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
 # Load environment variables or use defaults
@@ -11,17 +10,25 @@ load_dotenv()
 
 # Tuya device configurations
 DEVICES = {
-    'plug1': {
+    'cactus': {
         'id': os.environ.get('DEVICE1_ID', "eb06105cff43c50594rz5n"),
+        'ip': os.environ.get('DEVICE1_IP', "192.168.86.249"),
         'name': "Cactus"
     },
-    'plug2': {
-        'id': os.environ.get('DEVICE2_ID', "03310047840d8e87510e"),
+    'ananas': {
+        'id': os.environ.get('DEVICE2_ID', ""),
+        'ip': os.environ.get('DEVICE2_IP', ""),
+        'name': "Ananas"
+    },
+    'dino': {
+        'id': os.environ.get('DEVICE3_ID', ""),
+        'ip': os.environ.get('DEVICE3_IP', ""),
         'name': "Dino"
     },
-    'plug3': {
-        'id': os.environ.get('DEVICE3_ID', "eb39191340ad46ad91wbug"),
-        'name': "Ananas"
+    'vinyle': {
+        'id': os.environ.get('DEVICE4_ID', ""),
+        'ip': os.environ.get('DEVICE4_IP', ""),
+        'name': "Vinyle"
     }
 }
 
@@ -29,14 +36,6 @@ DEVICES = {
 ACCESS_ID = os.environ.get('ACCESS_ID', "4kcffc9h34rwnswpncrj")
 ACCESS_KEY = os.environ.get('ACCESS_KEY', "d1dc602a4d684f8895e2fca36d8996d8")
 REGION = os.environ.get('REGION', "us")
-
-# MQTT Configuration
-MQTT_BROKER = os.environ.get('MQTT_BROKER', "")
-MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
-MQTT_USERNAME = os.environ.get('MQTT_USERNAME', "")
-MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', "")
-MQTT_TOPIC_COMMAND = os.environ.get('MQTT_TOPIC_COMMAND', "tuya/command")
-MQTT_TOPIC_STATUS = os.environ.get('MQTT_TOPIC_STATUS', "tuya/status")
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -46,7 +45,7 @@ device = tinytuya.Cloud(
     apiRegion=REGION,
     apiKey=ACCESS_ID,
     apiSecret=ACCESS_KEY,
-    apiDeviceID=DEVICES['plug1']['id']  # Default device ID
+    apiDeviceID=DEVICES['cactus']['id']  # Default device ID
 )
 
 def control_single_device(device_id, action):
@@ -74,40 +73,6 @@ def control_all_devices(action):
             result = control_single_device(device_info['id'], action)
             results[device_key] = result
     return results
-
-# MQTT client setup
-if MQTT_BROKER:
-    mqtt_client = mqtt.Client()
-    
-    if MQTT_USERNAME and MQTT_PASSWORD:
-        mqtt_client.username_pw_set(MQTT_USERNAME, MQTT_PASSWORD)
-    
-    # MQTT callbacks
-    def on_connect(client, userdata, flags, rc):
-        print(f"Connected with result code {rc}")
-        client.subscribe(MQTT_TOPIC_COMMAND)
-    
-    def on_message(client, userdata, msg):
-        try:
-            payload = json.loads(msg.payload.decode())
-            action = payload.get("action")
-            if action:
-                result = control_all_devices(action)
-                # Publish the result to the status topic
-                client.publish(MQTT_TOPIC_STATUS, json.dumps(result))
-        except Exception as e:
-            print(f"Error processing MQTT message: {e}")
-    
-    mqtt_client.on_connect = on_connect
-    mqtt_client.on_message = on_message
-    
-    # Connect to MQTT broker if configured
-    try:
-        mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
-        mqtt_client.loop_start()
-        print(f"Connected to MQTT broker at {MQTT_BROKER}")
-    except Exception as e:
-        print(f"Error connecting to MQTT broker: {e}")
 
 # API routes
 @app.route('/')
