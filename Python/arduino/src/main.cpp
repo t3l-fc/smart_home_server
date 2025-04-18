@@ -9,7 +9,7 @@ ServerComm serverComm = ServerComm();
 
 // Function prototype
 void updateSwitchsState();
-
+void updateDisplay();
 void setup() {
   Serial.begin(115200);
   delay(4000);
@@ -42,18 +42,42 @@ void loop() {
   updateSwitchsState();
 }
 
+// isChanged() doit être une et une seule fois par boucle
 void updateSwitchsState() {
    if(
-    switchManager.isVinyleChanged() ||
-    switchManager.isAnanasChanged() ||
-    switchManager.isDinoChanged() ||
-    switchManager.isCactusChanged() 
+    switchManager.isAnanasChanged()
    ) {
-        displayManager.display(
-        String(switchManager.isVinyleOn()) +
-        String(switchManager.isAnanasOn()) +
-        String(switchManager.isDinoOn()) +
-        String(switchManager.isCactusOn())
-      );
-  }
+    updateDisplay();
+    serverComm.controlDevice("ananas", switchManager.isAnanasOn() ? "on" : "off");
+   }
+
+   if(
+    switchManager.isDinoChanged()
+   ) {
+    updateDisplay();
+    serverComm.controlDevice("dino", switchManager.isDinoOn() ? "on" : "off");
+   }
+
+   if(
+    switchManager.isCactusChanged()
+   ) {
+    updateDisplay();
+    serverComm.controlDevice("cactus", switchManager.isCactusOn() ? "on" : "off");
+   }
+
+   if(
+    switchManager.isVinyleChanged()
+   ) {
+    updateDisplay();
+    serverComm.controlDevice("vinyle", switchManager.isVinyleOn() ? "on" : "off");
+   }  
+}
+
+void updateDisplay() {
+  displayManager.display(
+    String(switchManager.isVinyleOn()) +
+    String(switchManager.isAnanasOn()) +
+    String(switchManager.isDinoOn()) +
+    String(switchManager.isCactusOn())
+  );
 }
