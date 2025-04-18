@@ -1,29 +1,9 @@
 #include <Arduino.h>
 #include "Display.h"
-
-// Pin definitions
-const int vinylePin = 27;
-const int ananasPin = 15;
-const int dinoPin = 32;
-const int cactusPin = 14;
-const int allPlugsPin = 33;
-
-// Current states
-bool cactusState = false;
-bool ananasState = false;
-bool dinoState = false;
-bool vinyleState = false;
-bool allPlugsState = false;
+#include "SwitchManager.h"
 
 Display alpha4 = Display();
-
-void initStates() {
-  cactusState = !digitalRead(cactusPin);
-  ananasState = !digitalRead(ananasPin);
-  dinoState = !digitalRead(dinoPin);
-  vinyleState = !digitalRead(vinylePin);
-  allPlugsState = !digitalRead(allPlugsPin);
-}
+SwitchManager switchManager = SwitchManager();
 
 void setup() {
   Serial.begin(115200);
@@ -31,78 +11,35 @@ void setup() {
   
   Serial.println("Display setup");
   alpha4.setup();
-  
-  // Initialize switch pins as inputs with pull-up resistors
-  pinMode(cactusPin, INPUT_PULLUP);
-  pinMode(ananasPin, INPUT_PULLUP);
-  pinMode(dinoPin, INPUT_PULLUP);
-  pinMode(vinylePin, INPUT_PULLUP);
-  pinMode(allPlugsPin, INPUT_PULLUP);
-  
-  initStates();
 
-  Serial.println("Display setup done");
-  alpha4.display("CACA");
+  Serial.println("SwitchManager setup");
+  switchManager.begin();
   
-  // Show initial states
   delay(1000);
-  //alpha4.showStates(cactusState, ananasState, dinoState, vinyleState);
 }
 
 void loop() {
-  Serial.print("Cactus: ");
-  Serial.print(cactusState);
-  Serial.print(", Ananas: ");
-  Serial.print(ananasState);
-  Serial.print(", Dino: ");
-  Serial.print(dinoState);
-  Serial.print(", Vinyle: ");
-  Serial.print(vinyleState);
-  Serial.print(", All Plugs: ");
-  Serial.println(allPlugsState);
+  switchManager.update();
 
-  if(digitalRead(cactusPin) == LOW && cactusState == false) {
-    cactusState = true;
-    alpha4.display("CA_+");
-  }
-  if(digitalRead(cactusPin) == HIGH && cactusState == true) {
-    cactusState = false;
-    alpha4.display("CA_-");
+  if(switchManager.isVinyleChanged()) {
+    Serial.println("Vinyle changed: " + String(switchManager.isVinyleOn()));
   }
 
-  if(digitalRead(ananasPin) == LOW && ananasState == false) {
-    ananasState = true;
-    alpha4.display("AN_+");
-  }
-  if(digitalRead(ananasPin) == HIGH && ananasState == true) {
-    ananasState = false;
-    alpha4.display("AN_-");
+  if(switchManager.isAnanasChanged()) {
+    Serial.println("Ananas changed: " + String(switchManager.isAnanasOn()));
   }
 
-  if(digitalRead(dinoPin) == LOW && dinoState == false) {
-    dinoState = true;
-    alpha4.display("DI_+");
-  }
-  if(digitalRead(dinoPin) == HIGH && dinoState == true) {
-    dinoState = false;
-    alpha4.display("DI_-");
+  if(switchManager.isDinoChanged()) {
+    Serial.println("Dino changed: " + String(switchManager.isDinoOn()));
   }
 
-  if(digitalRead(vinylePin) == LOW && vinyleState == false) {
-    vinyleState = true;
-    alpha4.display("VI_+");
-  }
-  if(digitalRead(vinylePin) == HIGH && vinyleState == true) {
-    vinyleState = false;
-    alpha4.display("VI_-");
+  if(switchManager.isCactusChanged()) {
+    Serial.println("Cactus changed: " + String(switchManager.isCactusOn()));
   }
 
-  if(digitalRead(allPlugsPin) == LOW && allPlugsState == false) {
-    allPlugsState = true;
-    alpha4.display("ALL_+");
+  if(switchManager.isAllPlugsChanged()) {
+    Serial.println("All Plugs changed: " + String(switchManager.isAllPlugsOn()));
   }
-  if(digitalRead(allPlugsPin) == HIGH && allPlugsState == true) {
-    allPlugsState = false;
-    alpha4.display("ALL_-");
-  }
+  
+  
 }

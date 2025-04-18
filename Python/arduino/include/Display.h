@@ -12,7 +12,7 @@ private:
 
 public:
   Display() {}
-  
+
   void display(String msg) {
     _alpha4.clear();
     // Write each character to the display
@@ -24,7 +24,7 @@ public:
   
   // Initialize the display
   void setup() {
-    _alpha4.begin(0x70);  // pass in the address
+    _alpha4.begin(0x70);
     delay(100);
     clear();
   }
