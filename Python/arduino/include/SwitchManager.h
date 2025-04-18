@@ -30,7 +30,7 @@ class SwitchManager {
     
   public:
     // Initialize pins
-    void begin() {
+    bool setup() {
       pinMode(_cactusPin, INPUT_PULLUP);
       pinMode(_ananasPin, INPUT_PULLUP);
       pinMode(_dinoPin, INPUT_PULLUP);
@@ -50,12 +50,7 @@ class SwitchManager {
       _previousCactusState = _cactusSwitch;
       _previousAllPlugsState = _allPlugsSwitch;
       
-      Serial.println("Switch Manager initialized");
-      Serial.println("- Vinyle switch on pin " + String(_vinylePin));
-      Serial.println("- Ananas switch on pin " + String(_ananasPin));
-      Serial.println("- Dino switch on pin " + String(_dinoPin));
-      Serial.println("- Cactus switch on pin " + String(_cactusPin));
-      Serial.println("- All Plugs switch on pin " + String(_allPlugsPin));
+      return true;
     }
     
     void update() {

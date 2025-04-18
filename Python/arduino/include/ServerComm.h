@@ -14,37 +14,37 @@
 
 class ServerComm {
   private:
-    String _serverUrl;
-    const char* _ssid;
-    const char* _password;
-    
+    String _serverUrl = "http://192.168.1.100:8080";
+    const char* _ssid = "Hyrule";
+    const char* _password = "stevebegin";
+
   public:
-    // Constructor
-    ServerComm(const char* serverUrl, const char* ssid, const char* password) {
-      _serverUrl = String(serverUrl);
-      _ssid = ssid;
-      _password = password;
+    bool setup() {
+      connectWiFi();
+      listDevices();
+
+      return true;
     }
     
     // Connect to WiFi
     bool connectWiFi() {
-      Serial.print("Connecting to WiFi");
+      //Serial.print("Connecting to WiFi");
       WiFi.begin(_ssid, _password);
       
       int attempts = 0;
-      while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      while (WiFi.status() != WL_CONNECTED && attempts < 30) {
         delay(500);
         Serial.print(".");
         attempts++;
       }
       
       if (WiFi.status() == WL_CONNECTED) {
-        Serial.println("\nConnected to WiFi!");
-        Serial.print("IP address: ");
-        Serial.println(WiFi.localIP());
+        //Serial.println("\nConnected to WiFi!");
+        //Serial.print("IP address: ");
+        //Serial.println(WiFi.localIP());
         return true;
       } else {
-        Serial.println("\nFailed to connect to WiFi!");
+        //Serial.println("\nFailed to connect to WiFi!");
         return false;
       }
     }
@@ -52,15 +52,15 @@ class ServerComm {
     // Check WiFi connection and reconnect if needed
     bool checkWiFi() {
       if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("WiFi not connected. Reconnecting...");
+        //Serial.println("WiFi not connected. Reconnecting...");
         return connectWiFi();
       }
       return true;
     }
     
     // List all available devices
-    void listDevices() {
-      if (!checkWiFi()) return;
+    bool listDevices() {
+      if (WiFi.status() != WL_CONNECTED) return false;
       
       HTTPClient http;
       Serial.println("Getting list of devices...");
@@ -90,12 +90,16 @@ class ServerComm {
           Serial.printf("HTTP error: %d\n", httpCode);
           String payload = http.getString();
           Serial.println("Error response: " + payload);
+          return false;
         }
       } else {
         Serial.printf("Failed to get devices list: %s\n", http.errorToString(httpCode).c_str());
+        return false;
       }
       
       http.end();
+
+      return true;
     }
     
     // Get status of one or all devices
