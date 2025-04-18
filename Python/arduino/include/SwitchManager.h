@@ -178,6 +178,28 @@ class SwitchManager {
     bool isDinoSwitchOn() const { return _dinoSwitchOn; }
     bool isVinyleSwitchOn() const { return _vinyleSwitchOn; }
     
+    // Apply initial switch states based on their positions
+    void applyInitialSwitchStates() {
+      if (_allPlugsSwitchOn) {
+        // Master switch is on, turn on applicable devices
+        if (_cactusSwitchOn) {
+          _server->controlDevice("cactus", "on");
+        }
+        if (_ananasSwitchOn) {
+          _server->controlDevice("ananas", "on");
+        }
+        if (_dinoSwitchOn) {
+          _server->controlDevice("dino", "on");
+        }
+        if (_vinyleSwitchOn) {
+          _server->controlDevice("vinyle", "on");
+        }
+      } else {
+        // Master switch is off, ensure all devices are off
+        _server->controlDevice("all", "off");
+      }
+    }
+    
   private:
     // Check the master switch
     bool checkMasterSwitch() {
@@ -253,35 +275,25 @@ class SwitchManager {
       if ((millis() - _lastDebounceTime[switchIndex]) > _debounceDelay) {
         // If state has changed after debounce
         if (currentState != lastState) {
-          bool newSwitchPosition = (currentState == LOW); // LOW = switch in ON position
+          bool newSwitchState = (currentState == LOW); // LOW = switch in ON position
           
-          Serial.print(deviceId);
-          Serial.print(" switch turned ");
-          Serial.println(newSwitchPosition ? "ON" : "OFF");
-          
-          // If individual switch turned ON and master is ON, turn on the device
-          if (newSwitchPosition && _allPlugsSwitchOn) {
-            Serial.print("- Turning ");
-            Serial.print(deviceId);
-            Serial.println(" ON (master switch is ON)");
-            _server->controlDevice(deviceId, "on");
+          // State changed from OFF to ON
+          if (newSwitchState && !switchOn) {
+            // Only allow turning ON if master switch is ON
+            if (_allPlugsSwitchOn) {
+              Serial.printf("%s switch turned ON - Turning device ON\n", deviceId.c_str());
+              _server->controlDevice(deviceId, "on");
+              switchOn = true;
+            }
           }
-          // If individual switch turned OFF, always turn off the device
-          else if (!newSwitchPosition) {
-            Serial.print("- Turning ");
-            Serial.print(deviceId);
-            Serial.println(" OFF");
+          // State changed from ON to OFF
+          else if (!newSwitchState && switchOn) {
+            Serial.printf("%s switch turned OFF - Turning device OFF\n", deviceId.c_str());
             _server->controlDevice(deviceId, "off");
-          }
-          // If individual switch turned ON but master is OFF, log but don't turn on
-          else if (newSwitchPosition && !_allPlugsSwitchOn) {
-            Serial.print("- ");
-            Serial.print(deviceId);
-            Serial.println(" will turn ON when master switch is ON");
+            switchOn = false;
           }
           
-          // Update the switch position state
-          switchOn = newSwitchPosition;
+          // Update the switch state
           lastState = currentState;
           
           return true;

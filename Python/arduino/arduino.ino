@@ -16,12 +16,7 @@
 #include "SerialComm.h"
 #include "SwitchManager.h"
 #include "DisplayManager.h"
-#include "esp_sleep.h"
-#include "driver/rtc_io.h"
-#include "esp_adc_cal.h"
-#include "driver/adc.h"
-#include <esp_wifi.h>
-#include <esp_bt.h>
+#include "SleepManager.h"
 
 // WiFi credentials
 const char* ssid = "YOUR_WIFI_SSID";
@@ -42,11 +37,6 @@ const int allPlugsPin = 33;  // GPIO pin for "All plugs" switch
 const int sdaPin = 21;       // SDA pin for I2C
 const int sclPin = 22;       // SCL pin for I2C
 
-// Deep sleep configuration
-const uint64_t SLEEP_TIMEOUT_MS = 60000;  // 60 seconds
-uint64_t lastActivityTime = 0;
-bool deepSleepEnabled = true;
-
 // Define the pins used in our project so we can set unused pins properly
 const int USED_PINS[] = {ledPin, cactusPin, ananasPin, dinoPin, vinylePin, allPlugsPin, sdaPin, sclPin};
 const int NUM_USED_PINS = sizeof(USED_PINS) / sizeof(USED_PINS[0]);
@@ -54,140 +44,90 @@ const int NUM_USED_PINS = sizeof(USED_PINS) / sizeof(USED_PINS[0]);
 // Create communication objects
 ServerComm server(serverUrl, ssid, password);
 SerialComm serial(&server);
-SwitchManager switches(cactusPin, ananasPin, dinoPin, vinylePin, allPlugsPin, &server);
 DisplayManager display;
+SwitchManager switches(cactusPin, ananasPin, dinoPin, vinylePin, allPlugsPin, &server);
+SleepManager sleepManager(USED_PINS, NUM_USED_PINS, &display);
 
 // Add a boot sequence variable
 bool initialBootSequenceComplete = false;
 
-// Record activity to reset sleep timer
-void recordActivity() {
-  lastActivityTime = millis();
-  digitalWrite(ledPin, HIGH);  // Visual indicator of activity
-  delay(50);
-  digitalWrite(ledPin, LOW);
-}
+void setup() {
+ 
 
-// Configure deep sleep wake sources
-void configureWakeupSources() {
-  // Define which pins can wake the ESP32
-  const uint64_t wakeupPins = (1ULL << cactusPin) | (1ULL << ananasPin) | 
-                             (1ULL << dinoPin) | (1ULL << vinylePin) | 
-                             (1ULL << allPlugsPin);
-  
-  // Configure EXT1 wake-up source (multiple pins)
-  esp_sleep_enable_ext1_wakeup(wakeupPins, ESP_EXT1_WAKEUP_ANY_HIGH);
-  
-  Serial.println("Sleep mode configured. Will wake on any switch change.");
-}
+  // Initialize serial communication
+  Serial.begin(115200);
 
-// Configure unused pins to minimize power leakage
-void configureUnusedPins() {
-  // Get total GPIO count for ESP32
-  const int NUM_GPIO = 40;
+  while (!Serial) {
+    delay(100);
+  }
+ delay(4000);
+
+ while (true)
+ {
+  Serial.println("Starting setup");
+ }
+ 
+  Serial.println("Starting setup");
   
-  // Loop through all GPIO pins
-  for (int i = 0; i < NUM_GPIO; i++) {
-    // Skip used pins
-    bool isPinUsed = false;
-    for (int j = 0; j < NUM_USED_PINS; j++) {
-      if (i == USED_PINS[j]) {
-        isPinUsed = true;
-        break;
-      }
-    }
-    
-    // Skip special pins that shouldn't be modified
-    if (i == 0 || i == 1 || // UART pins for serial
-        i == 6 || i == 7 || i == 8 || i == 9 || i == 10 || i == 11 || // SPI flash pins
-        i == 16 || i == 17 || // not accessible on HUZZAH32
-        i >= 34) { // Input-only pins
-      continue;
-    }
-    
-    // Configure unused pins as INPUT (no pullup/pulldown) to minimize power
-    if (!isPinUsed) {
-      pinMode(i, INPUT);
-    }
+  // Initialize LED pin
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, HIGH);  // Turn on LED while booting
+  
+  // Setup after wake-up
+  sleepManager.initAfterWakeUp();
+  
+  // Initialize I2C for display
+  Wire.begin(sdaPin, sclPin);
+  
+  // Initialize display
+  if (display.begin()) {
+    Serial.println("Display initialized successfully");
   }
   
-  Serial.println("Unused pins configured for power saving");
-}
-
-// Prepare for deep sleep with full power optimization
-void enterDeepSleep() {
-  Serial.println("Preparing for deep sleep with power optimization...");
+  // Initialize toggle switches - but don't apply their states yet
+  switches.beginWithoutApplying();
   
-  // 1. Turn off display
-  display.setPower(false);
+  // Run the startup sequence - this will handle WiFi connection
+  // and apply switch states after countdown completes
+  startupSequence();
   
-  // 2. Put I2C pins in high-impedance state (INPUT_PULLUP)
-  Wire.end();
-  pinMode(sdaPin, INPUT_PULLUP);
-  pinMode(sclPin, INPUT_PULLUP);
-  
-  // 3. Disable WiFi
-  WiFi.disconnect(true);
-  WiFi.mode(WIFI_OFF);
-  esp_wifi_stop();
-  
-  // 4. Disable Bluetooth
-  btStop();
-  esp_bt_controller_disable();
-  
-  // 5. Disable ADC
-  adc_power_off();
-  
-  // 6. Configure unused pins
-  configureUnusedPins();
-  
-  // 7. Configure wake sources
-  configureWakeupSources();
-  
-  // 8. Turn off LED
+  // Turn off boot LED
   digitalWrite(ledPin, LOW);
   
-  // 9. Configure power domains for maximum savings
-  // Disable unnecessary power domains (RTC peripherals will stay on for wake-up)
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_ON);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_ON);
-  esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);
+  // Record activity to start the sleep timer
+  sleepManager.recordActivity();
   
-  // 10. Flash power saving options
-  esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_OFF);
-  
-  // Short delay to allow serial to finish
-  delay(100);
-  
-  Serial.println("Entering deep sleep mode...");
-  esp_deep_sleep_start();
+  Serial.println("Device ready. Will enter deep sleep after 60 seconds of inactivity.");
 }
 
-// Initialize device after wake-up
-void initAfterWakeUp() {
-  // Check wake-up reason
-  esp_sleep_wakeup_cause_t wakeupReason = esp_sleep_get_wakeup_cause();
-  
-  if (wakeupReason == ESP_SLEEP_WAKEUP_EXT1) {
-    Serial.println("Woke up from deep sleep due to switch activity!");
-    
-    // Get which GPIO triggered the wake-up
-    uint64_t wakeupPin = esp_sleep_get_ext1_wakeup_status();
-    
-    // Convert bit pattern to pin number
-    for (int i = 0; i < 40; i++) {
-      if (wakeupPin & (1ULL << i)) {
-        Serial.printf("Wake-up triggered by GPIO %d\n", i);
-        break;
-      }
-    }
-  } else {
-    Serial.println("Normal boot (not from deep sleep)");
+void loop() {
+  // Process serial commands (these will record activity)
+  if (serial.update()) {
+    sleepManager.recordActivity();
   }
   
-  // Re-enable ADC that was disabled during sleep
-  adc_power_on();
+  // Check toggle switches (these will record activity if changes detected)
+  if (switches.update()) {
+    sleepManager.recordActivity();
+  }
+  
+  // Update display with current plug states
+  display.update(
+    switches.isCactusOn(),
+    switches.isAnanasOn(),
+    switches.isDinoOn(),
+    switches.isVinyleOn()
+  );
+  
+  // Check if it's time to sleep
+  if (sleepManager.shouldSleep()) {
+    // Configure wake-up sources before entering sleep
+    const uint64_t wakeupPins = (1ULL << cactusPin) | (1ULL << ananasPin) | 
+                               (1ULL << dinoPin) | (1ULL << vinylePin) | 
+                               (1ULL << allPlugsPin);
+    sleepManager.configureWakeupSources(wakeupPins);
+    sleepManager.enterDeepSleep();
+  }
 }
 
 // Execute startup sequence
@@ -222,87 +162,5 @@ void startupSequence() {
   Serial.println("Boot sequence complete - switches active now");
   
   // Now apply the initial switch states
-  applyInitialSwitchStates();
-}
-
-// Apply initial switch states based on their positions
-void applyInitialSwitchStates() {
-  if (switches.isAllPlugsOn()) {
-    // Master switch is on, turn on applicable devices
-    if (switches.isCactusSwitchOn()) {
-      server.controlDevice("cactus", "on");
-    }
-    if (switches.isAnanasSwitchOn()) {
-      server.controlDevice("ananas", "on");
-    }
-    if (switches.isDinoSwitchOn()) {
-      server.controlDevice("dino", "on");
-    }
-    if (switches.isVinyleSwitchOn()) {
-      server.controlDevice("vinyle", "on");
-    }
-  } else {
-    // Master switch is off, ensure all devices are off
-    server.controlDevice("all", "off");
-  }
-}
-
-void setup() {
-  // Initialize serial communication
-  serial.begin(115200);
-  
-  // Initialize LED pin
-  pinMode(ledPin, OUTPUT);
-  digitalWrite(ledPin, HIGH);  // Turn on LED while booting
-  
-  // Setup after wake-up
-  initAfterWakeUp();
-  
-  // Initialize I2C for display
-  Wire.begin(sdaPin, sclPin);
-  
-  // Initialize display
-  if (display.begin()) {
-    Serial.println("Display initialized successfully");
-  }
-  
-  // Initialize toggle switches - but don't apply their states yet
-  switches.beginWithoutApplying();
-  
-  // Run the startup sequence - this will handle WiFi connection
-  // and apply switch states after countdown completes
-  startupSequence();
-  
-  // Turn off boot LED
-  digitalWrite(ledPin, LOW);
-  
-  // Record activity to start the sleep timer
-  recordActivity();
-  
-  Serial.println("Device ready. Will enter deep sleep after 60 seconds of inactivity.");
-}
-
-void loop() {
-  // Process serial commands (these will record activity)
-  if (serial.update()) {
-    recordActivity();
-  }
-  
-  // Check toggle switches (these will record activity if changes detected)
-  if (switches.update()) {
-    recordActivity();
-  }
-  
-  // Update display with current plug states
-  display.update(
-    switches.isCactusOn(),
-    switches.isAnanasOn(),
-    switches.isDinoOn(),
-    switches.isVinyleOn()
-  );
-  
-  // Check if it's time to sleep
-  if (deepSleepEnabled && millis() - lastActivityTime > SLEEP_TIMEOUT_MS) {
-    enterDeepSleep();
-  }
+  switches.applyInitialSwitchStates();
 } 
