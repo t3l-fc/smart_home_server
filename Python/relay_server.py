@@ -16,17 +16,17 @@ DEVICES = {
         'name': "Cactus"
     },
     'ananas': {
-        'id': os.environ.get('DEVICE2_ID', ""),
-        'ip': os.environ.get('DEVICE2_IP', ""),
+        'id': os.environ.get('DEVICE2_ID', "eb39191340ad46ad91wbug"),
+        'ip': os.environ.get('DEVICE2_IP', "192.168.86.25"),
         'name': "Ananas"
     },
     'dino': {
-        'id': os.environ.get('DEVICE3_ID', ""),
-        'ip': os.environ.get('DEVICE3_IP', ""),
+        'id': os.environ.get('DEVICE3_ID', "03310047840d8e87510e"),
+        'ip': os.environ.get('DEVICE3_IP', "192.168.86.20"),
         'name': "Dino"
     },
     'vinyle': {
-        'id': os.environ.get('DEVICE4_ID', ""),
+        'id': os.environ.get('DEVICE4_ID', "eb6eef417508566dbf5mfh"),
         'ip': os.environ.get('DEVICE4_IP', ""),
         'name': "Vinyle"
     }
