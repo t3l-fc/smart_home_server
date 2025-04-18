@@ -2,11 +2,11 @@
 #include "Display.h"
 
 // Pin definitions
-const int cactusPin = 14;    // GPIO pin for Cactus switch
-const int ananasPin = 27;    // GPIO pin for Ananas switch
-const int dinoPin = 26;      // GPIO pin for Dino switch
-const int vinylePin = 33;    // GPIO pin for Vinyle plug switch
-const int allPlugsPin = 25;  // GPIO pin for "All plugs" switch
+const int vinylePin = 27;
+const int ananasPin = 15;
+const int dinoPin = 32;
+const int cactusPin = 14;
+const int allPlugsPin = 33;
 
 // Current states
 bool cactusState = false;
@@ -50,7 +50,16 @@ void setup() {
 }
 
 void loop() {
-  
+  Serial.print("Cactus: ");
+  Serial.print(cactusState);
+  Serial.print(", Ananas: ");
+  Serial.print(ananasState);
+  Serial.print(", Dino: ");
+  Serial.print(dinoState);
+  Serial.print(", Vinyle: ");
+  Serial.print(vinyleState);
+  Serial.print(", All Plugs: ");
+  Serial.println(allPlugsState);
 
   if(digitalRead(cactusPin) == LOW && cactusState == false) {
     cactusState = true;
