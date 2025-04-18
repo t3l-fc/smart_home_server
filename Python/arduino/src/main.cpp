@@ -5,6 +5,9 @@
 Display alpha4 = Display();
 SwitchManager switchManager = SwitchManager();
 
+// Function prototype
+void updateSwitchsState();
+
 void setup() {
   Serial.begin(115200);
   delay(4000);
@@ -14,32 +17,35 @@ void setup() {
 
   Serial.println("SwitchManager setup");
   switchManager.begin();
+
+  // Display the initial state of the switches
+  alpha4.display(
+    String(switchManager.isVinyleOn()) +
+    String(switchManager.isAnanasOn()) +
+    String(switchManager.isDinoOn()) +
+    String(switchManager.isCactusOn())
+  );
   
   delay(1000);
 }
 
 void loop() {
   switchManager.update();
+  updateSwitchsState();
+}
 
-  if(switchManager.isVinyleChanged()) {
-    Serial.println("Vinyle changed: " + String(switchManager.isVinyleOn()));
+void updateSwitchsState() {
+   if(
+    switchManager.isVinyleChanged() ||
+    switchManager.isAnanasChanged() ||
+    switchManager.isDinoChanged() ||
+    switchManager.isCactusChanged() 
+   ) {
+      alpha4.display(
+        String(switchManager.isVinyleOn()) +
+        String(switchManager.isAnanasOn()) +
+        String(switchManager.isDinoOn()) +
+        String(switchManager.isCactusOn())
+      );
   }
-
-  if(switchManager.isAnanasChanged()) {
-    Serial.println("Ananas changed: " + String(switchManager.isAnanasOn()));
-  }
-
-  if(switchManager.isDinoChanged()) {
-    Serial.println("Dino changed: " + String(switchManager.isDinoOn()));
-  }
-
-  if(switchManager.isCactusChanged()) {
-    Serial.println("Cactus changed: " + String(switchManager.isCactusOn()));
-  }
-
-  if(switchManager.isAllPlugsChanged()) {
-    Serial.println("All Plugs changed: " + String(switchManager.isAllPlugsOn()));
-  }
-  
-  
 }
