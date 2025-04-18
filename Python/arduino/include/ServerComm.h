@@ -14,7 +14,7 @@
 
 class ServerComm {
   private:
-    String _serverUrl = "http://192.168.1.100:8080";
+    String _serverUrl = "https://smart-home-server-a076.onrender.com";
     const char* _ssid = "Hyrule";
     const char* _password = "stevebegin";
 
@@ -34,7 +34,7 @@ class ServerComm {
       int attempts = 0;
       while (WiFi.status() != WL_CONNECTED && attempts < 30) {
         delay(500);
-        Serial.print(".");
+        //Serial.print(".");
         attempts++;
       }
       
@@ -63,7 +63,7 @@ class ServerComm {
       if (WiFi.status() != WL_CONNECTED) return false;
       
       HTTPClient http;
-      Serial.println("Getting list of devices...");
+      //Serial.println("Getting list of devices...");
       
       String url = _serverUrl + "/api/devices";
       http.begin(url);
@@ -73,7 +73,7 @@ class ServerComm {
       if (httpCode > 0) {
         if (httpCode == HTTP_CODE_OK) {
           String payload = http.getString();
-          Serial.println("\nAvailable devices:");
+          //Serial.println("\nAvailable devices:");
           
           DynamicJsonDocument doc(1024);
           DeserializationError error = deserializeJson(doc, payload);
@@ -83,17 +83,17 @@ class ServerComm {
             for (JsonPair device : devices) {
               const char* key = device.key().c_str();
               const char* name = device.value()["name"];
-              Serial.printf("  - %s (%s)\n", name, key);
+              //Serial.printf("  - %s (%s)\n", name, key);
             }
           }
         } else {
-          Serial.printf("HTTP error: %d\n", httpCode);
-          String payload = http.getString();
-          Serial.println("Error response: " + payload);
+          //Serial.printf("HTTP error: %d\n", httpCode);
+          //String payload = http.getString();
+          //Serial.println("Error response: " + payload);
           return false;
         }
       } else {
-        Serial.printf("Failed to get devices list: %s\n", http.errorToString(httpCode).c_str());
+        //Serial.printf("Failed to get devices list: %s\n", http.errorToString(httpCode).c_str());
         return false;
       }
       
