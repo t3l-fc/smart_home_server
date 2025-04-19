@@ -13,6 +13,7 @@ import sys
 import paho.mqtt.client as mqtt
 import tinytuya
 import random
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 print("Starting Smart Plug Controller - Version 1.0")
 
@@ -253,10 +254,45 @@ def start_mqtt_loop():
     mqtt_client.loop_start()
     print("MQTT client loop started")
 
+# ===== HTTP FUNCTIONS =====
+
+# Add this class to create a simple HTTP server
+class SimpleHTTPHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.end_headers()
+        
+        status = {
+            "status": "healthy",
+            "mqtt_connected": mqtt_client and mqtt_client.is_connected(),
+            "uptime": time.time() - start_time if 'start_time' in globals() else 0,
+            "service": "mqtt_relay"
+        }
+        
+        self.wfile.write(json.dumps(status).encode())
+    
+    def log_message(self, format, *args):
+        # Suppress log messages to avoid cluttering the console
+        return
+
+# Add this function to start the HTTP server
+def start_http_server(port=int(os.environ.get('PORT', 10000))):
+    """Start a simple HTTP server for health checks"""
+    server = HTTPServer(('0.0.0.0', port), SimpleHTTPHandler)
+    print(f"Starting HTTP server on port {port}")
+    server_thread = threading.Thread(target=server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+    return server
+
 # ===== MAIN FUNCTION =====
 
 def main():
     """Main function"""
+    global start_time
+    start_time = time.time()
+    
     print("Starting Smart Plug Controller")
     
     # Initialize Tuya connection
@@ -268,6 +304,11 @@ def main():
     else:
         print("ERROR: Failed to initialize MQTT client. Exiting.")
         return 1
+    
+    # Start HTTP server for Render health checks
+    port = int(os.environ.get('PORT', 10000))
+    http_server = start_http_server(port)
+    print(f"HTTP server running on port {port}")
     
     # Keep the main thread running
     try:
@@ -302,6 +343,10 @@ def main():
             mqtt_client.loop_stop()
             mqtt_client.disconnect()
             print("MQTT client stopped and disconnected")
+        
+        # Stop HTTP server
+        http_server.shutdown()
+        print("HTTP server stopped")
     
     print("Smart Plug Controller stopped")
     return 0
@@ -309,5 +354,4 @@ def main():
 # ===== PROGRAM ENTRY POINT =====
 
 if __name__ == "__main__":
-    start_time = time.time()
     sys.exit(main())
