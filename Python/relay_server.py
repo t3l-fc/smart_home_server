@@ -1,11 +1,15 @@
 import os
 import json
 import time
+import ssl
 from flask import Flask, request, jsonify
 import tinytuya
 from dotenv import load_dotenv
 import paho.mqtt.client as mqtt
 from paho.mqtt import publish
+
+# Version marker to confirm deployment
+print("Loading relay_server.py - Version 2.0 (Adafruit IO)")
 
 # Load environment variables or use defaults
 load_dotenv()
@@ -39,12 +43,13 @@ ACCESS_ID = os.environ.get('ACCESS_ID', "4kcffc9h34rwnswpncrj")
 ACCESS_KEY = os.environ.get('ACCESS_KEY', "d1dc602a4d684f8895e2fca36d8996d8")
 REGION = os.environ.get('REGION', "us")
 
-# MQTT Configuration
-MQTT_BROKER = "broker.emqx.io"  # Replace with your MQTT broker address
-MQTT_PORT = 1883
-MQTT_USER = None  # Set if your broker requires authentication
-MQTT_PASSWORD = None
+# MQTT Configuration - Default values, will be overridden by values from main.py
+MQTT_BROKER = "io.adafruit.com"
+MQTT_PORT = 8883
+MQTT_USER = "marsouino"
+MQTT_PASSWORD = "2e4dabd28afe424085715d39cb85311a"
 MQTT_CLIENT_ID = "smart_plug_relay"
+MQTT_FEED = "marsouino/feeds/smart_plugs"
 
 # Topics
 BASE_TOPIC = "home/plugs"
@@ -65,18 +70,29 @@ device = tinytuya.Cloud(
 def control_single_device(device_id, action):
     """Control a single device"""
     try:
+        print(f"Calling Tuya API to {action} device {device_id}")
         if action == "on":
+            print(f"Sending 'switch_1: True' command to device {device_id}")
             result = device.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": True}]})
+            print(f"Tuya API response: {result}")
             return {"status": "success", "action": "on", "result": result}
         elif action == "off":
+            print(f"Sending 'switch_1: False' command to device {device_id}")
             result = device.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": False}]})
+            print(f"Tuya API response: {result}")
             return {"status": "success", "action": "off", "result": result}
         elif action == "status":
+            print(f"Getting status for device {device_id}")
             result = device.getstatus(device_id)
+            print(f"Tuya API status response: {result}")
             return {"status": "success", "action": "status", "result": result}
         else:
+            print(f"ERROR: Invalid action {action}")
             return {"status": "error", "message": "Invalid action"}
     except Exception as e:
+        print(f"ERROR in control_single_device: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return {"status": "error", "message": str(e)}
 
 def control_all_devices(action):
@@ -91,7 +107,7 @@ def control_all_devices(action):
 # API routes
 @app.route('/')
 def index():
-    return "Tuya Smart Plug Relay Server is running!"
+    return "Tuya Smart Plug Relay Server is running! Using Adafruit IO MQTT."
 
 @app.route('/api/control/<device_id>', methods=['POST'])
 def api_control_single(device_id):
@@ -172,107 +188,201 @@ def api_list_devices():
 # Health check endpoint
 @app.route('/health', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy"}), 200
+    return jsonify({"status": "healthy", "mqtt_broker": MQTT_BROKER, "mqtt_feed": MQTT_FEED}), 200
+
+# Global variable for MQTT client
+mqtt_client = None
 
 # MQTT Callbacks
 def on_connect(client, userdata, flags, rc):
-    print(f"Connected to MQTT broker with result code {rc}")
-    # Subscribe to command topics
-    client.subscribe(COMMAND_TOPIC)
+    print(f"Connected to MQTT broker {userdata['broker']} with result code {rc}")
+    # Subscribe to the feed
+    client.subscribe(userdata["feed"])
+    print(f"Subscribed to {userdata['feed']}")
     
-    # Publish status of all devices
-    publish_status()
+    # Publish an initial status message
+    client.publish(userdata["feed"], json.dumps({
+        "status": "connected",
+        "server": "smart_plug_relay",
+        "devices": list(DEVICES.keys())
+    }))
 
 def on_message(client, userdata, msg):
     try:
-        # Extract device ID from topic
-        # Topic format: home/plugs/device_id/set
-        topic_parts = msg.topic.split('/')
-        if len(topic_parts) != 4:
-            print(f"Invalid topic format: {msg.topic}")
-            return
-        
-        device_id = topic_parts[2]
         payload = msg.payload.decode()
+        print(f"MQTT RECEIVED: Topic={msg.topic}, Payload={payload}")
         
-        print(f"Received message on topic {msg.topic}: {payload}")
-        
-        # Process command
-        if payload.lower() in ["on", "true", "1"]:
-            result = control_single_device(device_id, "on")
-        elif payload.lower() in ["off", "false", "0"]:
-            result = control_single_device(device_id, "off")
+        # Parse command format (device:action)
+        if ":" in payload:
+            device_id, action = payload.split(":", 1)
+            print(f"Parsed command: Device={device_id}, Action={action}")
+            
+            # Find the device in our DEVICES dictionary
+            device_tuya_id = None
+            for key, device_info in DEVICES.items():
+                if key == device_id:
+                    device_tuya_id = device_info['id']
+                    break
+            
+            if not device_tuya_id:
+                print(f"ERROR: Unknown device: {device_id}")
+                client.publish(userdata["feed"], json.dumps({
+                    "error": f"Unknown device: {device_id}",
+                    "available_devices": list(DEVICES.keys())
+                }))
+                return
+            
+            print(f"Found device ID: {device_tuya_id} for {device_id}")
+                
+            # Process command
+            if action.lower() in ["on", "true", "1"]:
+                print(f"Attempting to turn ON {device_id}...")
+                result = control_single_device(device_tuya_id, "on")
+                print(f"Result of turning ON {device_id}: {result}")
+                client.publish(userdata["feed"], json.dumps({
+                    "device": device_id, 
+                    "status": "on", 
+                    "result": result
+                }))
+            elif action.lower() in ["off", "false", "0"]:
+                print(f"Attempting to turn OFF {device_id}...")
+                result = control_single_device(device_tuya_id, "off")
+                print(f"Result of turning OFF {device_id}: {result}")
+                client.publish(userdata["feed"], json.dumps({
+                    "device": device_id, 
+                    "status": "off", 
+                    "result": result
+                }))
+            elif action.lower() == "status":
+                print(f"Checking status of {device_id}...")
+                result = control_single_device(device_tuya_id, "status")
+                print(f"Status of {device_id}: {result}")
+                client.publish(userdata["feed"], json.dumps({
+                    "device": device_id, 
+                    "status": "status", 
+                    "result": result
+                }))
+            else:
+                print(f"ERROR: Invalid command: {action}")
+                client.publish(userdata["feed"], json.dumps({
+                    "error": f"Invalid command: {action}",
+                    "valid_commands": ["on", "off", "status"]
+                }))
+                return
+        # Special case for "all" command
+        elif payload == "all:on":
+            print("Turning ON all devices...")
+            result = control_all_devices("on")
+            client.publish(userdata["feed"], json.dumps({
+                "device": "all", 
+                "status": "on", 
+                "result": result
+            }))
+        elif payload == "all:off":
+            print("Turning OFF all devices...")
+            result = control_all_devices("off")
+            client.publish(userdata["feed"], json.dumps({
+                "device": "all", 
+                "status": "off", 
+                "result": result
+            }))
+        elif payload == "all:status":
+            print("Checking status of all devices...")
+            result = control_all_devices("status")
+            client.publish(userdata["feed"], json.dumps({
+                "device": "all", 
+                "status": "status", 
+                "result": result
+            }))
         else:
-            print(f"Invalid command: {payload}")
-            return
-        
-        # Publish updated status
-        publish_device_status(device_id, "on" if payload.lower() in ["on", "true", "1"] else "off")
-        
+            print(f"ERROR: Invalid message format: {payload} (expected device:action)")
+            client.publish(userdata["feed"], json.dumps({
+                "error": f"Invalid message format: {payload}",
+                "expected_format": "device:action",
+                "examples": ["cactus:on", "ananas:off", "dino:status", "all:on"]
+            }))
+            
     except Exception as e:
-        print(f"Error processing message: {e}")
+        print(f"ERROR processing message: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        
+        # Try to publish error back to feed
+        try:
+            client.publish(userdata["feed"], json.dumps({
+                "error": f"Exception in message handler: {str(e)}"
+            }))
+        except:
+            pass
 
-def publish_status():
-    """Publish status of all devices"""
-    status = {}
-    for device_id, device_info in DEVICES.items():
-        if device_info['id']:
-            # In a real implementation, you would get the actual status
-            # Here we're just setting a default status
-            status[device_id] = {
-                "name": device_info['name'],
-                "status": "unknown"  # Replace with actual status query
-            }
-    
-    client.publish(STATUS_TOPIC, json.dumps(status), retain=True)
-    print(f"Published status update for all devices")
+def on_disconnect(client, userdata, rc):
+    print(f"Disconnected from MQTT broker with result code {rc}")
+    if rc != 0:
+        print("Unexpected disconnection. Trying to reconnect...")
+        # Try to reconnect (client will handle reconnection automatically)
 
-def publish_device_status(device_id, status):
-    """Publish status update for a single device"""
-    if device_id in DEVICES:
-        topic = f"{BASE_TOPIC}/{device_id}/status"
-        client.publish(topic, status, retain=True)
-        print(f"Published status update for {device_id}: {status}")
-
-# Main function
-def main():
-    global client
+def start_mqtt_client(server, port, username, key, feed):
+    """Initialize and start MQTT client with Adafruit IO credentials"""
+    global mqtt_client, MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASSWORD, MQTT_FEED
     
-    # Create MQTT client
-    client = mqtt.Client(client_id=MQTT_CLIENT_ID)
+    # Update global variables with the provided credentials
+    MQTT_BROKER = server
+    MQTT_PORT = port
+    MQTT_USER = username
+    MQTT_PASSWORD = key
+    MQTT_FEED = feed
     
-    # Set callbacks
-    client.on_connect = on_connect
-    client.on_message = on_message
+    print(f"Starting MQTT client with Adafruit IO credentials:")
+    print(f"  Server: {server}")
+    print(f"  Port: {port}")
+    print(f"  Username: {username}")
+    print(f"  Feed: {feed}")
     
-    # Set authentication if required
-    if MQTT_USER and MQTT_PASSWORD:
-        client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    # Store settings for callbacks
+    userdata = {
+        "broker": server,
+        "feed": feed
+    }
     
-    # Connect to broker
     try:
-        client.connect(MQTT_BROKER, MQTT_PORT, 60)
+        # Create MQTT client
+        mqtt_client = mqtt.Client(client_id="smart_plug_relay", userdata=userdata)
+        
+        # Set callbacks
+        mqtt_client.on_connect = on_connect
+        mqtt_client.on_message = on_message
+        mqtt_client.on_disconnect = on_disconnect
+        
+        # Set authentication
+        mqtt_client.username_pw_set(username, key)
+        
+        # Enable SSL/TLS
+        mqtt_client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS)
+        
+        # Connect to broker
+        mqtt_client.connect(server, port, 60)
+        
+        # Start network loop
+        mqtt_client.loop_start()
+        
+        print(f"MQTT client started successfully and connected to {server}")
+        return True
     except Exception as e:
         print(f"Failed to connect to MQTT broker: {e}")
-        return
-    
-    # Start network loop
-    client.loop_start()
-    
-    try:
-        # Main loop
-        while True:
-            # Perform any periodic tasks here
-            time.sleep(60)  # Update status every minute
-            publish_status()
-            
-    except KeyboardInterrupt:
-        print("Shutting down...")
-    finally:
-        client.loop_stop()
-        client.disconnect()
+        import traceback
+        traceback.print_exc()
+        return False
+
+# No standalone main function here - it will be called from main.py
+# We now use the start_mqtt_client function to initialize MQTT
 
 if __name__ == '__main__':
+    # This block only runs if relay_server.py is executed directly
+    print("relay_server.py should be imported by main.py, not run directly")
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
-    main() 
+    
+    # Start MQTT client with default values
+    start_mqtt_client(MQTT_BROKER, MQTT_PORT, MQTT_USER, MQTT_PASSWORD, MQTT_FEED)
+    
+    # Start Flask app
+    app.run(host='0.0.0.0', port=port) 
