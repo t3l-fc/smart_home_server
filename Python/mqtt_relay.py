@@ -12,6 +12,7 @@ import threading
 import sys
 import paho.mqtt.client as mqtt
 import tinytuya
+import random
 
 print("Starting Smart Plug Controller - Version 1.0")
 
@@ -128,6 +129,11 @@ def on_message(client, userdata, msg):
         payload = msg.payload.decode()
         print(f"Received message: {payload}")
         
+        # Check if this is a JSON message (likely a response, not a command)
+        if payload.startswith('{') and payload.endswith('}'):
+            print("Ignoring JSON message (probably a response, not a command)")
+            return
+        
         # Parse command (device:action)
         if ":" in payload:
             device_id, action = payload.split(":", 1)
@@ -214,8 +220,9 @@ def init_mqtt():
     print(f"  Username: {MQTT_USERNAME}")
     print(f"  Feed: {MQTT_FEED}")
     
-    # Create client
-    mqtt_client = mqtt.Client(client_id="smart_plug_relay")
+    # Create client with random client ID to avoid conflicts
+    client_id = f"smart_plug_relay_{random.randint(1000, 9999)}"
+    mqtt_client = mqtt.Client(client_id=client_id)
     
     # Set callbacks
     mqtt_client.on_connect = on_connect
@@ -227,6 +234,9 @@ def init_mqtt():
     
     # Enable SSL/TLS
     mqtt_client.tls_set(cert_reqs=ssl.CERT_REQUIRED, tls_version=ssl.PROTOCOL_TLS)
+    
+    # Set automatic reconnect options
+    mqtt_client.reconnect_delay_set(min_delay=1, max_delay=120)
     
     # Connect to broker
     try:
