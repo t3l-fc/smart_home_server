@@ -9,7 +9,7 @@ import requests
 import sys
 import time
 
-def test_server(base_url, action=None, device=None):
+def test_server(base_url="https://smart-home-server-a076.onrender.com", action=None, device=None):
     base_url = base_url.rstrip('/')
     
     try:

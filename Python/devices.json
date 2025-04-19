@@ -1,0 +1,138 @@
+[
+    {
+        "name": "Vinyle",
+        "id": "eb6eef417508566dbf5mfh",
+        "key": "nBRpo/mV$>PV~[OQ",
+        "mac": "68:57:2d:3c:44:51",
+        "uuid": "ac32022a62999add",
+        "category": "cz",
+        "product_name": "Smart Socket",
+        "product_id": "octeoqhuayzof69q",
+        "biz_type": 18,
+        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "sub": false,
+        "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
+        "mapping": {
+            "1": {
+                "code": "switch_1",
+                "type": "Boolean",
+                "values": {}
+            },
+            "11": {
+                "code": "countdown_1",
+                "type": "Integer",
+                "values": {
+                    "unit": "s",
+                    "min": 0,
+                    "max": 86400,
+                    "scale": 0,
+                    "step": 1
+                }
+            }
+        },
+        "ip": "",
+        "version": ""
+    },
+    {
+        "name": "Cactus",
+        "id": "eb06105cff43c50594rz5n",
+        "key": "O}/R_Ony=5gssUT&",
+        "mac": "68:57:2d:34:58:7e",
+        "uuid": "eb916527f3a21488",
+        "category": "cz",
+        "product_name": "Smart Socket",
+        "product_id": "octeoqhuayzof69q",
+        "biz_type": 18,
+        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "sub": false,
+        "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
+        "mapping": {
+            "1": {
+                "code": "switch_1",
+                "type": "Boolean",
+                "values": {}
+            },
+            "11": {
+                "code": "countdown_1",
+                "type": "Integer",
+                "values": {
+                    "unit": "s",
+                    "min": 0,
+                    "max": 86400,
+                    "scale": 0,
+                    "step": 1
+                }
+            }
+        },
+        "ip": "192.168.86.249",
+        "version": "3.3"
+    },
+    {
+        "name": "Dino",
+        "id": "03310047840d8e87510e",
+        "key": "2)?'xZ&|WNE+s;?{",
+        "mac": "84:0d:8e:87:51:0e",
+        "uuid": "03310047840d8e87510e",
+        "category": "cz",
+        "product_name": "Smart Socket",
+        "product_id": "4bVOiYN0zdh6vTYq",
+        "biz_type": 18,
+        "model": "SP10",
+        "sub": false,
+        "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/111e36532c41b87fc4b798de10c975ff.jpg",
+        "mapping": {
+            "1": {
+                "code": "switch_1",
+                "type": "Boolean",
+                "values": {}
+            },
+            "11": {
+                "code": "countdown_1",
+                "type": "Integer",
+                "values": {
+                    "unit": "s",
+                    "min": 0,
+                    "max": 86400,
+                    "scale": 0,
+                    "step": 1
+                }
+            }
+        },
+        "ip": "192.168.86.20",
+        "version": "3.1"
+    },
+    {
+        "name": "Ananas",
+        "id": "eb39191340ad46ad91wbug",
+        "key": "Ieo24^1c]_I@*f}A",
+        "mac": "68:57:2d:3c:e3:72",
+        "uuid": "137455b164a3163d",
+        "category": "cz",
+        "product_name": "Smart Socket",
+        "product_id": "octeoqhuayzof69q",
+        "biz_type": 18,
+        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "sub": false,
+        "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
+        "mapping": {
+            "1": {
+                "code": "switch_1",
+                "type": "Boolean",
+                "values": {}
+            },
+            "11": {
+                "code": "countdown_1",
+                "type": "Integer",
+                "values": {
+                    "unit": "s",
+                    "min": 0,
+                    "max": 86400,
+                    "scale": 0,
+                    "step": 1
+                }
+            }
+        },
+        "ip": "192.168.86.25",
+        "version": "3.3"
+    }
+]
