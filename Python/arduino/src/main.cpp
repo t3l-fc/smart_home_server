@@ -33,7 +33,7 @@ void setup() {
   Serial.println(commManager.setup() ? "OK" : "KO");
   commManager.setupSubscribe(myCallBack);
   
-  commManager.publish("set", "ananas", switchManager.isAnanasOn());
+  commManager.publish("ananas", "on");
 
   //Serial.print("WiFi setup : ");
   //Serial.println(serverComm.connectWiFi() ? "OK" : "KO");
@@ -67,29 +67,28 @@ void updateSwitchsState() {
     switchManager.isAnanasChanged()
    ) {
     updateDisplay();
-    commManager.publish("set", "ananas", switchManager.isAnanasOn());
-    //serverComm.controlDevice("ananas", switchManager.isAnanasOn() ? "on" : "off");
+    commManager.controlDevice("ananas", switchManager.isAnanasOn());
    }
 
    if(
     switchManager.isDinoChanged()
    ) {
     updateDisplay();
-    //serverComm.controlDevice("dino", switchManager.isDinoOn() ? "on" : "off");
+    commManager.controlDevice("dino", switchManager.isDinoOn());
    }
 
    if(
     switchManager.isCactusChanged()
    ) {
     updateDisplay();
-    //serverComm.controlDevice("cactus", switchManager.isCactusOn() ? "on" : "off");
+    commManager.controlDevice("cactus", switchManager.isCactusOn());
    }
 
    if(
     switchManager.isVinyleChanged()
    ) {
     updateDisplay();
-    serverComm.controlDevice("vinyle", switchManager.isVinyleOn() ? "on" : "off");
+    commManager.controlDevice("vinyle", switchManager.isVinyleOn());
    }  
 }
 
@@ -116,7 +115,6 @@ bool connectWiFi() {
 }
 
 void myCallBack(char *data, uint16_t len) {
-  Serial.println("myCallBack");
   if (!data || len == 0) {
       Serial.println("Invalid MQTT message received");
       return;

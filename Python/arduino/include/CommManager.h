@@ -22,8 +22,13 @@ class CommManager {
         mqtt->setupSubscribe(MQTT_QOS_1, feed, callback);
     }
 
-    void publish(String action, String device, bool state) {
-        String msg = "{\"action\":\"" + action + "\",\"device\":\"" + device + "\",\"state\":" + state + "}";
+    void publish(String device, String action) {
+        String msg = "{\"action\":\"" + action + "\",\"device\":\"" + device + "\"}";
+        mqtt->publish(msg.c_str());
+    }
+
+    void controlDevice(String device, bool state) {
+        String msg = device + ":" + (state ? "on" : "off");
         mqtt->publish(msg.c_str());
     }
 
