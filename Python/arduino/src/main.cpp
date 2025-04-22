@@ -21,8 +21,6 @@ void myCallBack(char *data, uint16_t len);
 void setup() {
   // Start serial with a high baud rate
   Serial.begin(115200);
-  delay(3000); // Longer delay to ensure serial is ready
-  
   Serial.println("Starting setup...");
   
   // Initialize the display manually first
@@ -31,15 +29,15 @@ void setup() {
   Serial.println(displaySetupOk ? "OK" : "KO");
   
   // Show initial boot message
-  displayManager.display("BOOT");
-  delay(1000);
+  //displayManager.display("BOOT");
+  //delay(1000);
   
   // Now initialize the display service
   Serial.print("Starting display service...");
   bool serviceOk = displayService.begin();
   Serial.println(serviceOk ? "OK" : "KO");
   
-  delay(1000); // Give the task some time to start
+  delay(100); // Give the task some time to start
   
   // Continue with the rest of the setup
   Serial.print("SwitchManager setup : ");
@@ -50,16 +48,28 @@ void setup() {
   displayService.setState(STATE_WIFI_CONNECTING);
   bool wifiOk = connectWiFi();
   Serial.println(wifiOk ? "OK" : "KO");
-  displayService.setState(wifiOk ? STATE_WIFI_OK : STATE_WIFI_FAIL);
-  delay(1000);
+  //displayService.setState(wifiOk ? STATE_WIFI_OK : STATE_WIFI_FAIL);
+  //delay(500);
+
+  if (!wifiOk) {
+    displayService.setState(STATE_WIFI_FAIL);
+    Serial.println("Failed to connect to WiFi");
+    return;
+  }
 
   // MQTT connection with animated display
   Serial.print("CommManager setup : ");
   displayService.setState(STATE_MQTT_CONNECTING);
   bool mqttOk = commManager.setup();
   Serial.println(mqttOk ? "OK" : "KO");
-  displayService.setState(mqttOk ? STATE_MQTT_OK : STATE_MQTT_FAIL);
-  delay(1000);
+  //displayService.setState(mqttOk ? STATE_MQTT_OK : STATE_MQTT_FAIL);
+  delay(500);
+  
+  if (!mqttOk) {
+    displayService.setState(STATE_MQTT_FAIL);
+    Serial.println("Failed to connect to MQTT");
+    return;
+  }
   
   Serial.print("Setting up subscribe...");
   commManager.setupSubscribe(myCallBack);
