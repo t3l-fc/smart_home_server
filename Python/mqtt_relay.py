@@ -14,6 +14,18 @@ import paho.mqtt.client as mqtt
 import tinytuya
 import random
 from http.server import HTTPServer, BaseHTTPRequestHandler
+import traceback
+import logging
+
+# --- Basic Logging Configuration ---
+# Configure logging to output to stdout, which Render should capture
+logging.basicConfig(
+    level=logging.INFO, # Set the default logging level (e.g., INFO, DEBUG)
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout # Explicitly direct logs to standard output
+)
+# -----------------------------------
 
 print("Starting Smart Plug Controller - Version 1.0")
 
@@ -31,6 +43,7 @@ MQTT_FEED = "marsouino/feeds/smart_plugs"
 TUYA_API_REGION = "us"
 TUYA_API_KEY = "4kcffc9h34rwnswpncrj"
 TUYA_API_SECRET = "d1dc602a4d684f8895e2fca36d8996d8"
+TUYA_DEVICE_ID = "eb06105cff43c50594rz5n"
 
 # Smart Plug Devices
 DEVICES = {
@@ -55,47 +68,57 @@ DEVICES = {
 # Global variables
 mqtt_client = None
 tuya_cloud = None
+mqtt_connected = False
+start_time = None
 
 # ===== TUYA FUNCTIONS =====
 
 def init_tuya():
-    """Initialize connection to Tuya Cloud API"""
+    """Initialize Tuya Cloud API connection."""
     global tuya_cloud
-    
-    print(f"Initializing Tuya Cloud API connection (Region: {TUYA_API_REGION})")
-    tuya_cloud = tinytuya.Cloud(
-        apiRegion=TUYA_API_REGION,
-        apiKey=TUYA_API_KEY,
-        apiSecret=TUYA_API_SECRET,
-        apiDeviceID=next(iter(DEVICES.values()))['id']  # Use first device as default
-    )
-    print("Tuya Cloud API connected successfully")
-
-def control_device(device_id, action):
-    """Control a specific Tuya device"""
-    if not tuya_cloud:
-        print("ERROR: Tuya Cloud not initialized")
-        return {"status": "error", "message": "Tuya Cloud not initialized"}
-        
+    logging.info("Attempting to initialize Tuya Cloud connection...")
     try:
-        print(f"Controlling device {device_id}: {action}")
-        
-        if action == "on":
-            result = tuya_cloud.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": True}]})
-            return {"status": "success", "action": "on", "result": result}
-        elif action == "off":
-            result = tuya_cloud.sendcommand(device_id, {"commands": [{"code": "switch_1", "value": False}]})
-            return {"status": "success", "action": "off", "result": result}
-        elif action == "status":
-            result = tuya_cloud.getstatus(device_id)
-            return {"status": "success", "action": "status", "result": result}
-        else:
-            return {"status": "error", "message": f"Invalid action: {action}"}
+        tuya_cloud = tinytuya.Cloud(
+            apiRegion=TUYA_API_REGION,
+            apiKey=TUYA_API_KEY,
+            apiSecret=TUYA_API_SECRET,
+            apiDeviceID=TUYA_DEVICE_ID)
+        logging.info("Tuya Cloud connection initialized successfully.")
+        return True # Indicate success
     except Exception as e:
-        print(f"ERROR controlling device {device_id}: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return {"status": "error", "message": str(e)}
+        # logging.exception automatically includes traceback info
+        logging.exception("ERROR: Failed to initialize Tuya Cloud connection")
+        tuya_cloud = None # Ensure it's None if failed
+        return False # Indicate failure
+
+def control_device(device_id, command):
+    """Sends command to Tuya device via Cloud API."""
+    if not tuya_cloud:
+        logging.error("Tuya Cloud API not initialized. Cannot control device %s.", device_id)
+        return False
+
+    logging.info("Attempting to send command '%s' to device '%s'...", command, device_id)
+    try:
+        cmd = {
+            'commands': [{
+                'code': 'switch_1',
+                'value': command.lower() == 'on'
+            }]
+        }
+        logging.debug("Sending command payload: %s", cmd) # Use DEBUG for detailed payload
+        result = tuya_cloud.sendcommand(device_id, cmd)
+        logging.info("Tuya API response for device %s: %s", device_id, result)
+
+        if result and result.get('success', False):
+             logging.info("SUCCESS: Command '%s' sent to device '%s' successfully.", command, device_id)
+             return True
+        else:
+             logging.warning("Tuya API reported failure or unexpected response for device %s: %s", device_id, result)
+             return False
+
+    except Exception as e:
+        logging.exception("ERROR: Failed to send command '%s' to device '%s'", command, device_id)
+        return False
 
 def control_all_devices(action):
     """Control all devices with the same action"""
@@ -109,10 +132,10 @@ def control_all_devices(action):
 def on_connect(client, userdata, flags, rc):
     """Callback when connected to MQTT broker"""
     if rc == 0:
-        print(f"Connected to MQTT broker {MQTT_BROKER} successfully")
+        logging.info(f"Connected to MQTT broker {MQTT_BROKER} successfully")
         # Subscribe to the feed
         client.subscribe(MQTT_FEED)
-        print(f"Subscribed to {MQTT_FEED}")
+        logging.info(f"Subscribed to {MQTT_FEED}")
         
         # Publish a connection message
         client.publish(MQTT_FEED, json.dumps({
@@ -122,27 +145,27 @@ def on_connect(client, userdata, flags, rc):
             "timestamp": time.time()
         }))
     else:
-        print(f"Failed to connect to MQTT broker, return code: {rc}")
+        logging.error(f"Failed to connect to MQTT broker, return code: {rc}")
 
 def on_message(client, userdata, msg):
     """Callback when a message is received"""
     try:
         payload = msg.payload.decode()
-        print(f"Received message: {payload}")
+        logging.info(f"Received message: {payload}")
         
         # Check if this is a JSON message (likely a response, not a command)
         if payload.startswith('{') and payload.endswith('}'):
-            print("Ignoring JSON message (probably a response, not a command)")
+            logging.info("Ignoring JSON message (probably a response, not a command)")
             return
         
         # Parse command (device:action)
         if ":" in payload:
             device_id, action = payload.split(":", 1)
-            print(f"Parsed command: device={device_id}, action={action}")
+            logging.info(f"Parsed command: device={device_id}, action={action}")
             
             # Special case for "all" device
             if device_id.lower() == "all":
-                print(f"Controlling ALL devices: {action}")
+                logging.info(f"Controlling ALL devices: {action}")
                 result = control_all_devices(action)
                 # Publish result
                 client.publish(MQTT_FEED, json.dumps({
@@ -161,7 +184,7 @@ def on_message(client, userdata, msg):
                     break
             
             if not tuya_device_id:
-                print(f"ERROR: Unknown device: {device_id}")
+                logging.error(f"ERROR: Unknown device: {device_id}")
                 client.publish(MQTT_FEED, json.dumps({
                     "error": f"Unknown device: {device_id}",
                     "available_devices": list(DEVICES.keys()),
@@ -181,7 +204,7 @@ def on_message(client, userdata, msg):
             }))
             
         else:
-            print(f"ERROR: Invalid message format: {payload}")
+            logging.error(f"ERROR: Invalid message format: {payload}")
             client.publish(MQTT_FEED, json.dumps({
                 "error": "Invalid message format",
                 "expected": "device:action",
@@ -190,9 +213,7 @@ def on_message(client, userdata, msg):
             }))
             
     except Exception as e:
-        print(f"ERROR processing message: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"ERROR processing message: {str(e)}")
         
         # Try to publish error
         try:
@@ -206,20 +227,20 @@ def on_message(client, userdata, msg):
 def on_disconnect(client, userdata, rc):
     """Callback when disconnected from MQTT broker"""
     if rc != 0:
-        print(f"Unexpected disconnection from MQTT broker, code: {rc}")
-        print("Will automatically try to reconnect...")
+        logging.warning(f"Unexpected disconnection from MQTT broker, code: {rc}")
+        logging.info("Will automatically try to reconnect...")
     else:
-        print("Disconnected from MQTT broker")
+        logging.info("Disconnected from MQTT broker")
 
 def init_mqtt():
     """Initialize the MQTT client"""
     global mqtt_client
     
-    print(f"Initializing MQTT client:")
-    print(f"  Broker: {MQTT_BROKER}")
-    print(f"  Port: {MQTT_PORT}")
-    print(f"  Username: {MQTT_USERNAME}")
-    print(f"  Feed: {MQTT_FEED}")
+    logging.info(f"Initializing MQTT client:")
+    logging.info(f"  Broker: {MQTT_BROKER}")
+    logging.info(f"  Port: {MQTT_PORT}")
+    logging.info(f"  Username: {MQTT_USERNAME}")
+    logging.info(f"  Feed: {MQTT_FEED}")
     
     # Create client with random client ID to avoid conflicts
     client_id = f"smart_plug_relay_{random.randint(1000, 9999)}"
@@ -244,15 +265,13 @@ def init_mqtt():
         mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
         return True
     except Exception as e:
-        print(f"ERROR connecting to MQTT broker: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logging.exception(f"ERROR connecting to MQTT broker: {str(e)}")
         return False
 
 def start_mqtt_loop():
     """Start the MQTT network loop in a separate thread"""
     mqtt_client.loop_start()
-    print("MQTT client loop started")
+    logging.info("MQTT client loop started")
 
 # ===== HTTP FUNCTIONS =====
 
@@ -280,7 +299,7 @@ class SimpleHTTPHandler(BaseHTTPRequestHandler):
 def start_http_server(port=int(os.environ.get('PORT', 10000))):
     """Start a simple HTTP server for health checks"""
     server = HTTPServer(('0.0.0.0', port), SimpleHTTPHandler)
-    print(f"Starting HTTP server on port {port}")
+    logging.info(f"Starting HTTP server on port {port}")
     server_thread = threading.Thread(target=server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
@@ -295,7 +314,10 @@ def main():
     last_tuya_refresh = time.time()
     TUYA_REFRESH_INTERVAL = 20 * 3600 # Refresh every 6 hours (adjust as needed)
 
-    print("Starting Smart Plug Controller")
+    logging.info("-----------------------------------------")
+    logging.info("Starting Smart Plug Controller")
+    logging.info(f"Tuya Refresh Interval: {TUYA_REFRESH_INTERVAL}s")
+    logging.info("-----------------------------------------")
     
     # Initialize Tuya connection
     init_tuya()
@@ -304,17 +326,17 @@ def main():
     if init_mqtt():
         start_mqtt_loop()
     else:
-        print("ERROR: Failed to initialize MQTT client. Exiting.")
+        logging.error("ERROR: Failed to initialize MQTT client. Exiting.")
         return 1
     
     # Start HTTP server for Render health checks
     port = int(os.environ.get('PORT', 10000))
     http_server = start_http_server(port)
-    print(f"HTTP server running on port {port}")
+    logging.info(f"HTTP server running on port {port}")
     
     # Keep the main thread running
     try:
-        print("Smart Plug Controller running. Press Ctrl+C to exit.")
+        logging.info("Smart Plug Controller running. Press Ctrl+C to exit.")
         
         # Main loop - keep the program running and perform periodic tasks
         while True:
@@ -322,7 +344,7 @@ def main():
 
             # Periodically refresh Tuya connection
             if current_time - last_tuya_refresh > TUYA_REFRESH_INTERVAL:
-                print(f"INFO: Refreshing Tuya Cloud connection (Interval: {TUYA_REFRESH_INTERVAL}s)")
+                logging.info(f"INFO: Refreshing Tuya Cloud connection (Interval: {TUYA_REFRESH_INTERVAL}s)")
                 # ... rest of the refresh logic ...
 
             # Publish a periodic heartbeat/status message
@@ -337,11 +359,9 @@ def main():
             time.sleep(60)  # Heartbeat every minute
             
     except KeyboardInterrupt:
-        print("Keyboard interrupt received. Shutting down...")
+        logging.info("Keyboard interrupt received. Shutting down...")
     except Exception as e:
-        print(f"ERROR in main loop: {str(e)}")
-        import traceback
-        traceback.print_exc()
+        logging.exception("ERROR in main loop: {str(e)}")
     finally:
         # Clean up
         if mqtt_client:
@@ -351,13 +371,13 @@ def main():
             }))
             mqtt_client.loop_stop()
             mqtt_client.disconnect()
-            print("MQTT client stopped and disconnected")
+            logging.info("MQTT client stopped and disconnected")
         
         # Stop HTTP server
         http_server.shutdown()
-        print("HTTP server stopped")
+        logging.info("HTTP server stopped")
     
-    print("Smart Plug Controller stopped")
+    logging.info("Smart Plug Controller stopped")
     return 0
 
 # ===== PROGRAM ENTRY POINT =====
