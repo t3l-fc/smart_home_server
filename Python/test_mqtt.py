@@ -9,6 +9,7 @@ import time
 import json
 import sys
 import argparse
+import os
 
 # Adafruit IO Configuration
 MQTT_BROKER = "io.adafruit.com"
@@ -143,3 +144,61 @@ if __name__ == "__main__":
     else:
         print("\nTest failed")
         sys.exit(1)
+
+def main():
+    """Main function"""
+    global start_time, tuya_cloud # Make sure tuya_cloud is global if modifying it here
+    start_time = time.time()
+    last_tuya_refresh = time.time()
+    TUYA_REFRESH_INTERVAL = 6 * 3600 # Refresh every 6 hours (adjust as needed)
+
+    print("Starting Smart Plug Controller")
+
+    # Initialize Tuya connection
+    init_tuya()
+
+    # Initialize and start MQTT client
+    if init_mqtt():
+        start_mqtt_loop()
+    else:
+        print("ERROR: Failed to initialize MQTT client. Exiting.")
+        return 1
+
+    # Start HTTP server for Render health checks
+    port = int(os.environ.get('PORT', 10000))
+    http_server = start_http_server(port)
+    print(f"HTTP server running on port {port}")
+
+    # Keep the main thread running
+    try:
+        print("Smart Plug Controller running. Press Ctrl+C to exit.")
+
+        # Main loop - keep the program running and perform periodic tasks
+        while True:
+            current_time = time.time()
+
+            # Periodically refresh Tuya connection
+            if current_time - last_tuya_refresh > TUYA_REFRESH_INTERVAL:
+                print(f"INFO: Refreshing Tuya Cloud connection (Interval: {TUYA_REFRESH_INTERVAL}s)")
+                try:
+                    init_tuya() # Re-run the initialization
+                    last_tuya_refresh = current_time
+                    print("INFO: Tuya Cloud connection refreshed successfully.")
+                except Exception as e:
+                    print(f"ERROR: Failed to refresh Tuya connection: {e}")
+                    # Optional: Decide if you want to retry sooner or handle differently
+
+            # Publish a periodic heartbeat/status message
+            if mqtt_client and mqtt_client.is_connected():
+                mqtt_client.publish(MQTT_FEED, json.dumps({
+                    "status": "heartbeat",
+                    "timestamp": current_time,
+                    "uptime": current_time - start_time
+                }))
+
+            # Sleep for a while
+            time.sleep(60) # Check every minute
+
+    except KeyboardInterrupt:
+        print("Keyboard interrupt received. Shutting down...")
+    # ... (rest of your finally block) ...

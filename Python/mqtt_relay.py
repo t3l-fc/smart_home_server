@@ -290,9 +290,11 @@ def start_http_server(port=int(os.environ.get('PORT', 10000))):
 
 def main():
     """Main function"""
-    global start_time
+    global start_time, tuya_cloud
     start_time = time.time()
-    
+    last_tuya_refresh = time.time()
+    TUYA_REFRESH_INTERVAL = 20 * 3600 # Refresh every 6 hours (adjust as needed)
+
     print("Starting Smart Plug Controller")
     
     # Initialize Tuya connection
@@ -316,6 +318,13 @@ def main():
         
         # Main loop - keep the program running and perform periodic tasks
         while True:
+            current_time = time.time()
+
+            # Periodically refresh Tuya connection
+            if current_time - last_tuya_refresh > TUYA_REFRESH_INTERVAL:
+                print(f"INFO: Refreshing Tuya Cloud connection (Interval: {TUYA_REFRESH_INTERVAL}s)")
+                # ... rest of the refresh logic ...
+
             # Publish a periodic heartbeat/status message
             if mqtt_client and mqtt_client.is_connected():
                 mqtt_client.publish(MQTT_FEED, json.dumps({
