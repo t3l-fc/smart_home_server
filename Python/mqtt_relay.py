@@ -27,7 +27,7 @@ logging.basicConfig(
 )
 # -----------------------------------
 
-print("Starting Smart Plug Controller - Version 1.0")
+print("Starting Smart Plug Controller - Version 1.1")
 
 # ===== CONFIGURATION =====
 # All credentials in one place
