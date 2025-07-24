@@ -278,18 +278,37 @@ def start_mqtt_loop():
 # Add this class to create a simple HTTP server
 class SimpleHTTPHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
+        # Parse the path to handle different endpoints
+        path = self.path.rstrip('/')
         
-        status = {
-            "status": "healthy",
-            "mqtt_connected": mqtt_client and mqtt_client.is_connected(),
-            "uptime": time.time() - start_time if 'start_time' in globals() else 0,
-            "service": "mqtt_relay"
-        }
-        
-        self.wfile.write(json.dumps(status).encode())
+        if path == '' or path == '/health':
+            # Root path or /health endpoint - return status
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            status = {
+                "status": "healthy",
+                "mqtt_connected": mqtt_client and mqtt_client.is_connected(),
+                "uptime": time.time() - start_time if 'start_time' in globals() else 0,
+                "service": "mqtt_relay",
+                "endpoint": path if path else "/"
+            }
+            
+            self.wfile.write(json.dumps(status).encode())
+        else:
+            # Unknown endpoint
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            error_response = {
+                "error": "Not found",
+                "path": path,
+                "available_endpoints": ["/", "/health"]
+            }
+            
+            self.wfile.write(json.dumps(error_response).encode())
     
     def log_message(self, format, *args):
         # Suppress log messages to avoid cluttering the console
