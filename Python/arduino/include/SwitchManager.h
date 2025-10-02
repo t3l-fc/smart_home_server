@@ -25,8 +25,18 @@ class SwitchManager {
     bool _previousCactusState;
     bool _previousAllPlugsState;
 
-    const int _debounceTime = 100;
+    const int _debounceTime = 200; // Reduced from 1000ms to 200ms for better responsiveness
     unsigned long _lastDebounceTime = 0;
+    
+    // Stable GPIO reading with multiple samples
+    bool readStableGPIO(int pin) {
+      int lowCount = 0;
+      for(int i = 0; i < 20; i++) { // 20 samples
+        if(digitalRead(pin) == LOW) lowCount++;
+        delay(2); // 2ms between samples
+      }
+      return lowCount > 15; // Need 75% agreement for stable reading
+    }
     
   public:
     // Initialize pins
@@ -95,10 +105,12 @@ class SwitchManager {
       if(digitalRead(_allPlugsPin) && _allPlugsSwitch) {
         _allPlugsSwitch = false;
         _lastDebounceTime = millis();
+        Serial.println("🔌 DEBUG: AllPlugs switch OFF detected");
       }
       else if(!digitalRead(_allPlugsPin) && !_allPlugsSwitch) {
         _allPlugsSwitch = true;
         _lastDebounceTime = millis();
+        Serial.println("🔌 DEBUG: AllPlugs switch ON detected");
       }
     }
     

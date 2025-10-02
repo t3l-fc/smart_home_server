@@ -8,7 +8,7 @@
 #define AIO_SERVERPORT  8883
 #define AIO_USERNAME  "marsouino"
 #define AIO_KEY "2e4dabd28afe424085715d39cb85311a"
-#define feed "marsouino/feeds/smart_plugs"
+#define MQTT_FEED "marsouino/feeds/smart_plugs"
 
 const char* adafruitio_root_ca = \
       "-----BEGIN CERTIFICATE-----\n"

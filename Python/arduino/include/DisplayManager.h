@@ -15,12 +15,36 @@ public:
   void display(String msg) {
     if (!_displayOn) return; // Skip if display is off
     
-    _alpha4.clear();
-    // Write each character to the display
-    for (uint8_t i = 0; i < 4 && i < msg.length(); i++) {
-      _alpha4.writeDigitAscii(i, msg.charAt(i));
+    // Try display operation with error recovery
+    int retries = 3;
+    while (retries > 0) {
+      _alpha4.clear();
+      
+      // Write each character to the display
+      for (uint8_t i = 0; i < 4 && i < msg.length(); i++) {
+        _alpha4.writeDigitAscii(i, msg.charAt(i));
+      }
+      
+      // Try to write to display with error detection
+      Wire.beginTransmission(0x70);
+      if (Wire.endTransmission() == 0) {
+        // Success - complete the display update
+        _alpha4.writeDisplay();
+        break;
+      } else {
+        // I2C error - retry after reset
+        Serial.printf("⚠️ I2C error, retrying... (%d attempts left)\n", retries-1);
+        Wire.end();
+        delay(10);
+        Wire.begin(21, 22);
+        delay(10);
+        _alpha4.begin(0x70);
+        retries--;
+        if (retries == 0) {
+          Serial.println("❌ Display communication failed!");
+        }
+      }
     }
-    _alpha4.writeDisplay();
   }
   
   // Display with char array

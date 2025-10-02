@@ -13,13 +13,13 @@ class CommManager {
 
         mqtt->connect();
         delay(1000);
-        mqtt->setupPublish(feed);
+        mqtt->setupPublish(MQTT_FEED);
 
         return true;
     }
 
     void setupSubscribe(void (*callback)(char *data, uint16_t len)) {
-        mqtt->setupSubscribe(MQTT_QOS_1, feed, callback);
+        mqtt->setupSubscribe(MQTT_QOS_1, MQTT_FEED, callback);
     }
 
     void publish(String device, String action) {

@@ -98,7 +98,7 @@ class SleepManager {
       Serial.println("Preparing for deep sleep with power optimization...");
       
       // 1. Turn off display
-      _display->setPower(false);
+      _display->writeDisplay(false);
       
       // 2. Put I2C pins in high-impedance state (INPUT_PULLUP)
       Wire.end();
@@ -112,23 +112,20 @@ class SleepManager {
       btStop();
       esp_bt_controller_disable();
       
-      // 5. Disable ADC
-      adc_power_off();
-      
-      // 6. Configure unused pins
+      // 5. Configure unused pins
       configureUnusedPins();
       
-      // 7. Turn off LED
+      // 6. Turn off LED
       digitalWrite(LED_BUILTIN, LOW);
       
-      // 8. Configure power domains for maximum savings
+      // 7. Configure power domains for maximum savings
       // Disable unnecessary power domains (RTC peripherals will stay on for wake-up)
       esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
       esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_SLOW_MEM, ESP_PD_OPTION_ON);
       esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_FAST_MEM, ESP_PD_OPTION_ON);
       esp_sleep_pd_config(ESP_PD_DOMAIN_XTAL, ESP_PD_OPTION_OFF);
       
-      // 9. Flash power saving options
+      // 8. Flash power saving options
       esp_sleep_pd_config(ESP_PD_DOMAIN_VDDSDIO, ESP_PD_OPTION_OFF);
       
       // Short delay to allow serial to finish
