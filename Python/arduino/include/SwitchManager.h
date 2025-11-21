@@ -10,7 +10,7 @@ class SwitchManager {
     const int _ananasPin = 15;
     const int _dinoPin = 32;
     const int _cactusPin = 14;
-    const int _basketPin = 11;
+    const int _basketPin = 12;
     const int _allPlugsPin = 27;
     
     // Switch position states (physical state)
