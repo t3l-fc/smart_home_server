@@ -166,6 +166,13 @@ void updateSwitchsState() {
     commManager.controlDevice("vinyle", switchManager.isVinyleOn());
     Serial.printf("💿 Vinyle: %s\n", switchManager.isVinyleOn() ? "ON" : "OFF");
    }
+
+   if(switchManager.isBasketChanged()) {
+    displayService.registerActivity(); // Reset display timeout
+    updateDisplay();
+    commManager.controlDevice("basket", switchManager.isBasketOn());
+    Serial.printf("🧺 Basket: %s\n", switchManager.isBasketOn() ? "ON" : "OFF");
+   }
 }
 
 // Connect to WiFi
@@ -195,16 +202,17 @@ bool connectWiFi() {
 
 void updateDisplay() {
   // Update the display service with individual switch states (AllPlugs disabled)
-  // Order: Vinyle, Ananas, Dino, Cactus (left to right physically)
+  // Order: Vinyle, Ananas, Dino, Cactus, Basket (left to right physically)
   String statusString = "";
   
   // Build a status string showing individual switch states in physical order
   statusString += switchManager.isVinyleOn() ? "1" : "0";   // Position 1 (gauche)
   statusString += switchManager.isAnanasOn() ? "1" : "0";   // Position 2
   statusString += switchManager.isDinoOn() ? "1" : "0";     // Position 3  
-  statusString += switchManager.isCactusOn() ? "1" : "0";   // Position 4 (droite)
+  statusString += switchManager.isCactusOn() ? "1" : "0";   // Position 4
+  statusString += switchManager.isBasketOn() ? "1" : "0";   // Position 5 (droite)
   
-  // Add server status as 5th character (if display supports it)
+  // Add server status as 6th character (if display supports it)
   // H=Healthy, C=Checking, E=Error, D=Deploying, -=Unknown
   statusString += renderManager.getStatusChar();
   

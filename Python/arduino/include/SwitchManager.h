@@ -10,6 +10,7 @@ class SwitchManager {
     const int _ananasPin = 15;
     const int _dinoPin = 32;
     const int _cactusPin = 14;
+    const int _basketPin = 11;
     const int _allPlugsPin = 27;
     
     // Switch position states (physical state)
@@ -17,12 +18,14 @@ class SwitchManager {
     bool _ananasSwitch;
     bool _dinoSwitch;
     bool _cactusSwitch;
+    bool _basketSwitch;
     bool _allPlugsSwitch;
 
     bool _previousVinyleState;
     bool _previousAnanasState;
     bool _previousDinoState;
     bool _previousCactusState;
+    bool _previousBasketState;
     bool _previousAllPlugsState;
 
     const int _debounceTime = 200; // Reduced from 1000ms to 200ms for better responsiveness
@@ -45,6 +48,7 @@ class SwitchManager {
       pinMode(_ananasPin, INPUT_PULLUP);
       pinMode(_dinoPin, INPUT_PULLUP);
       pinMode(_vinylePin, INPUT_PULLUP);
+      pinMode(_basketPin, INPUT_PULLUP);
       pinMode(_allPlugsPin, INPUT_PULLUP);
 
       // Initialize switch states
@@ -52,12 +56,14 @@ class SwitchManager {
       _ananasSwitch = !digitalRead(_ananasPin);
       _dinoSwitch = !digitalRead(_dinoPin);
       _cactusSwitch = !digitalRead(_cactusPin);
+      _basketSwitch = !digitalRead(_basketPin);
       _allPlugsSwitch = !digitalRead(_allPlugsPin);
 
       _previousVinyleState = _vinyleSwitch;
       _previousAnanasState = _ananasSwitch;
       _previousDinoState = _dinoSwitch;
       _previousCactusState = _cactusSwitch;
+      _previousBasketState = _basketSwitch;
       _previousAllPlugsState = _allPlugsSwitch;
       
       return true;
@@ -99,6 +105,15 @@ class SwitchManager {
       }
       else if(!digitalRead(_cactusPin) && !_cactusSwitch) {
         _cactusSwitch = true;
+        _lastDebounceTime = millis();
+      }
+
+      if(digitalRead(_basketPin) && _basketSwitch) {
+        _basketSwitch = false;
+        _lastDebounceTime = millis();
+      }
+      else if(!digitalRead(_basketPin) && !_basketSwitch) {
+        _basketSwitch = true;
         _lastDebounceTime = millis();
       }
 
@@ -146,6 +161,14 @@ class SwitchManager {
       return false;
     }
 
+    bool isBasketChanged() {
+      if(_previousBasketState != _basketSwitch) {
+        _previousBasketState = _basketSwitch;
+        return true;
+      }
+      return false;
+    }
+
     bool isAllPlugsChanged() {
       if(_previousAllPlugsState != _allPlugsSwitch) {
         _previousAllPlugsState = _allPlugsSwitch;
@@ -158,6 +181,7 @@ class SwitchManager {
     bool isAnanasOn() const { return _ananasSwitch; }
     bool isDinoOn() const { return _dinoSwitch; }
     bool isVinyleOn() const { return _vinyleSwitch; }
+    bool isBasketOn() const { return _basketSwitch; }
     bool isAllPlugsOn() const { return _allPlugsSwitch; }
     
 };
