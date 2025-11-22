@@ -6,12 +6,12 @@
 class SwitchManager {
   private:
     // Pin definitions
-    const int _vinylePin = 33;
-    const int _ananasPin = 15;
-    const int _dinoPin = 32;
-    const int _cactusPin = 14;
-    const int _basketPin = 12;
-    const int _allPlugsPin = 27;
+    const int _vinylePin = 15;
+    const int _ananasPin = 12;
+    const int _dinoPin = 33;
+    const int _cactusPin = 13;
+    const int _basketPin = 27;
+    const int _allPlugsPin = 32;
     
     // Switch position states (physical state)
     bool _vinyleSwitch;
@@ -51,13 +51,13 @@ class SwitchManager {
       pinMode(_basketPin, INPUT_PULLUP);
       pinMode(_allPlugsPin, INPUT_PULLUP);
 
-      // Initialize switch states
-      _vinyleSwitch = !digitalRead(_vinylePin);
-      _ananasSwitch = !digitalRead(_ananasPin);
-      _dinoSwitch = !digitalRead(_dinoPin);
-      _cactusSwitch = !digitalRead(_cactusPin);
-      _basketSwitch = !digitalRead(_basketPin);
-      _allPlugsSwitch = !digitalRead(_allPlugsPin);
+      // Initialize switch states (inverted logic: HIGH = ON, LOW = OFF)
+      _vinyleSwitch = digitalRead(_vinylePin);
+      _ananasSwitch = digitalRead(_ananasPin);
+      _dinoSwitch = digitalRead(_dinoPin);
+      _cactusSwitch = digitalRead(_cactusPin);
+      _basketSwitch = digitalRead(_basketPin);
+      _allPlugsSwitch = digitalRead(_allPlugsPin);
 
       _previousVinyleState = _vinyleSwitch;
       _previousAnanasState = _ananasSwitch;
@@ -72,57 +72,58 @@ class SwitchManager {
     void update() {
       if(millis() - _lastDebounceTime < _debounceTime) return;
 
-      if(digitalRead(_vinylePin) && _vinyleSwitch) {
+      // Inverted logic: HIGH = ON, LOW = OFF
+      if(!digitalRead(_vinylePin) && _vinyleSwitch) {
         _vinyleSwitch = false;
         _lastDebounceTime = millis();
       }
-      else if(!digitalRead(_vinylePin) && !_vinyleSwitch) {
+      else if(digitalRead(_vinylePin) && !_vinyleSwitch) {
         _vinyleSwitch = true;
         _lastDebounceTime = millis();
       }
 
-      if(digitalRead(_ananasPin) && _ananasSwitch) {
+      if(!digitalRead(_ananasPin) && _ananasSwitch) {
         _ananasSwitch = false;
         _lastDebounceTime = millis();
       }
-      else if(!digitalRead(_ananasPin) && !_ananasSwitch) {
+      else if(digitalRead(_ananasPin) && !_ananasSwitch) {
         _ananasSwitch = true;
         _lastDebounceTime = millis();
       }
 
-      if(digitalRead(_dinoPin) && _dinoSwitch) {
+      if(!digitalRead(_dinoPin) && _dinoSwitch) {
         _dinoSwitch = false;
         _lastDebounceTime = millis();
       }
-      else if(!digitalRead(_dinoPin) && !_dinoSwitch) {
+      else if(digitalRead(_dinoPin) && !_dinoSwitch) {
         _dinoSwitch = true;
         _lastDebounceTime = millis();
       }
 
-      if(digitalRead(_cactusPin) && _cactusSwitch) {
+      if(!digitalRead(_cactusPin) && _cactusSwitch) {
         _cactusSwitch = false;
         _lastDebounceTime = millis();
       }
-      else if(!digitalRead(_cactusPin) && !_cactusSwitch) {
+      else if(digitalRead(_cactusPin) && !_cactusSwitch) {
         _cactusSwitch = true;
         _lastDebounceTime = millis();
       }
 
-      if(digitalRead(_basketPin) && _basketSwitch) {
+      if(!digitalRead(_basketPin) && _basketSwitch) {
         _basketSwitch = false;
         _lastDebounceTime = millis();
       }
-      else if(!digitalRead(_basketPin) && !_basketSwitch) {
+      else if(digitalRead(_basketPin) && !_basketSwitch) {
         _basketSwitch = true;
         _lastDebounceTime = millis();
       }
 
-      if(digitalRead(_allPlugsPin) && _allPlugsSwitch) {
+      if(!digitalRead(_allPlugsPin) && _allPlugsSwitch) {
         _allPlugsSwitch = false;
         _lastDebounceTime = millis();
         Serial.println("🔌 DEBUG: AllPlugs switch OFF detected");
       }
-      else if(!digitalRead(_allPlugsPin) && !_allPlugsSwitch) {
+      else if(digitalRead(_allPlugsPin) && !_allPlugsSwitch) {
         _allPlugsSwitch = true;
         _lastDebounceTime = millis();
         Serial.println("🔌 DEBUG: AllPlugs switch ON detected");

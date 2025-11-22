@@ -9,7 +9,7 @@
         "product_name": "Smart Socket",
         "product_id": "octeoqhuayzof69q",
         "biz_type": 18,
-        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "model": "SP10（T112 PIN）-FTY",
         "sub": false,
         "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
         "mapping": {
@@ -43,7 +43,7 @@
         "product_name": "Smart Socket",
         "product_id": "octeoqhuayzof69q",
         "biz_type": 18,
-        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "model": "SP10（T112 PIN）-FTY",
         "sub": false,
         "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
         "mapping": {
@@ -111,7 +111,7 @@
         "product_name": "Smart Socket",
         "product_id": "octeoqhuayzof69q",
         "biz_type": 18,
-        "model": "SP10\uff08T112 PIN\uff09-FTY",
+        "model": "SP10（T112 PIN）-FTY",
         "sub": false,
         "icon": "https://images.tuyaus.com/smart/icon/ay1514359068372Hd98B/9c4ebba5c74630f9d6a8d90092336ee6.jpg",
         "mapping": {
@@ -134,5 +134,39 @@
         },
         "ip": "192.168.86.25",
         "version": "3.3"
+    },
+    {
+        "name": "Basket",
+        "id": "08381200cc50e3127206",
+        "key": "",
+        "mac": "",
+        "uuid": "08381200cc50e3127206",
+        "category": "cz",
+        "product_name": "Smart Socket",
+        "product_id": "",
+        "biz_type": 18,
+        "model": "SP10",
+        "sub": false,
+        "icon": "",
+        "mapping": {
+            "1": {
+                "code": "switch_1",
+                "type": "Boolean",
+                "values": {}
+            },
+            "11": {
+                "code": "countdown_1",
+                "type": "Integer",
+                "values": {
+                    "unit": "s",
+                    "min": 0,
+                    "max": 86400,
+                    "scale": 0,
+                    "step": 1
+                }
+            }
+        },
+        "ip": "",
+        "version": ""
     }
 ]

@@ -50,6 +50,6 @@ void T3_MQTT::connect() {
   //Serial.println("MQTT Connected!");
 }
 
-void T3_MQTT::publish(const char *msg) {
-  pub->publish(msg);
+void T3_MQTT::publish(const char *msg, bool retained) {
+  pub->publish(msg, retained);
 }

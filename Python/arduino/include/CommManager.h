@@ -32,5 +32,10 @@ class CommManager {
         mqtt->publish(msg.c_str());
     }
 
+    // Publish a direct message string
+    void publishMessage(String message, bool retained = false) {
+        mqtt->publish(message.c_str(), retained);
+    }
+
 };
 

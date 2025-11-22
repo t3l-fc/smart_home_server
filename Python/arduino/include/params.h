@@ -4,6 +4,9 @@
 #define WLAN_SSID "Hyrule"
 #define WLAN_PASS "stevebegin"
 
+//#define WLAN_SSID "Tech3Lab"
+//#define WLAN_PASS "H3110Tech3L@b!"
+
 #define AIO_SERVER  "io.adafruit.com"
 #define AIO_SERVERPORT  8883
 #define AIO_USERNAME  "marsouino"

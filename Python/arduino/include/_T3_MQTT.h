@@ -14,7 +14,7 @@ class T3_MQTT {
   void setupPublish(const char *feedName);
   void loop();
   void connect();
-  void publish(const char *msg);
+  void publish(const char *msg, bool retained = false);
   
   private:
   //Adafruit_MQTT_Client mqtt;

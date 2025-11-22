@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "SwitchManager.h"
+#include "PotentiometerManager.h"
 #include "ServerComm.h"
 #include "CommManager.h"
 #include "RenderManager.h"
@@ -7,6 +8,7 @@
 #include "params.h"
 
 SwitchManager switchManager = SwitchManager();
+PotentiometerManager potentiometerManager(A4); // Pin A4 for potentiometer
 ServerComm serverComm = ServerComm();
 CommManager commManager = CommManager();
 RenderManager renderManager = RenderManager();
@@ -14,8 +16,10 @@ DailyReboot dailyReboot = DailyReboot();
 
 // Function prototype
 void updateSwitchsState();
+void updatePotentiometer();
 bool connectWiFi();
 void myCallBack(char *data, uint16_t len);
+void logAllControlsState();
 
 void setup() {
   // Start serial with a high baud rate
@@ -27,6 +31,9 @@ void setup() {
   // Initialize the rest of the setup
   Serial.print("SwitchManager setup : ");
   Serial.println(switchManager.setup() ? "OK" : "KO");
+  
+  Serial.print("PotentiometerManager setup : ");
+  Serial.println(potentiometerManager.setup() ? "OK" : "KO");
   
   // WiFi connection
   Serial.print("WiFi setup : ");
@@ -81,6 +88,11 @@ void setup() {
   Serial.println("Setup complete - Device always awake and responsive!");
   Serial.println("🔍 MONITORING: Watch for AllPlugs debug messages...");
   Serial.println("🚀 RENDER: Automatic server monitoring and redeploy enabled");
+  
+  // Log initial state of all controls
+  Serial.println("\n📊 === INITIAL CONTROLS STATE ===");
+  logAllControlsState();
+  Serial.println("================================\n");
 }
 
 void loop() {
@@ -88,6 +100,9 @@ void loop() {
   
   switchManager.update();
   updateSwitchsState();
+  
+  // Update potentiometer and send MQTT message if changed
+  updatePotentiometer();
   
   // Update RenderManager - monitors server health and triggers redeploy if needed
   renderManager.update();
@@ -108,27 +123,62 @@ void updateSwitchsState() {
    if(switchManager.isAnanasChanged()) {
     commManager.controlDevice("ananas", switchManager.isAnanasOn());
     Serial.printf("🍍 Ananas: %s\n", switchManager.isAnanasOn() ? "ON" : "OFF");
+    logAllControlsState(); // Log state after change
    }
 
    if(switchManager.isDinoChanged()) {
     commManager.controlDevice("dino", switchManager.isDinoOn());
     Serial.printf("🦕 Dino: %s\n", switchManager.isDinoOn() ? "ON" : "OFF");
+    logAllControlsState(); // Log state after change
    }
 
    if(switchManager.isCactusChanged()) {
     commManager.controlDevice("cactus", switchManager.isCactusOn());
     Serial.printf("🌵 Cactus: %s\n", switchManager.isCactusOn() ? "ON" : "OFF");
+    logAllControlsState(); // Log state after change
    }
 
    if(switchManager.isVinyleChanged()) {
     commManager.controlDevice("vinyle", switchManager.isVinyleOn());
     Serial.printf("💿 Vinyle: %s\n", switchManager.isVinyleOn() ? "ON" : "OFF");
+    logAllControlsState(); // Log state after change
    }
 
    if(switchManager.isBasketChanged()) {
     commManager.controlDevice("basket", switchManager.isBasketOn());
     Serial.printf("🧺 Basket: %s\n", switchManager.isBasketOn() ? "ON" : "OFF");
+    logAllControlsState(); // Log state after change
    }
+}
+
+// Update potentiometer and send MQTT message if changed
+void updatePotentiometer() {
+  if(potentiometerManager.update()) {
+    int brightness = potentiometerManager.getPercent();
+    String msg = "brightness:" + String(brightness);
+    commManager.publishMessage(msg, true); // Retain enabled for potentiometer
+    Serial.printf("🎚️ Brightness: %d%%\n", brightness);
+    logAllControlsState(); // Log state after change
+  }
+}
+
+// Log the state of all controls in the console
+void logAllControlsState() {
+  Serial.println("\n📊 === CONTROLS STATE ===");
+  
+  // Switches
+  Serial.printf("🔘 Vinyle:  %s\n", switchManager.isVinyleOn() ? "ON " : "OFF");
+  Serial.printf("🔘 Ananas:  %s\n", switchManager.isAnanasOn() ? "ON " : "OFF");
+  Serial.printf("🔘 Dino:    %s\n", switchManager.isDinoOn() ? "ON " : "OFF");
+  Serial.printf("🔘 Cactus:  %s\n", switchManager.isCactusOn() ? "ON " : "OFF");
+  Serial.printf("🔘 Basket:  %s\n", switchManager.isBasketOn() ? "ON " : "OFF");
+  Serial.printf("🔘 AllPlugs: %s (temporarily disabled)\n", switchManager.isAllPlugsOn() ? "ON " : "OFF");
+  
+  // Potentiometer
+  int brightness = potentiometerManager.getPercent();
+  Serial.printf("🎚️ Brightness: %d%%\n", brightness);
+  
+  Serial.println("========================\n");
 }
 
 // Connect to WiFi

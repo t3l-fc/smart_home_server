@@ -62,6 +62,10 @@ DEVICES = {
     'vinyle': {
         'id': "eb6eef417508566dbf5mfh",
         'name': "Vinyle"
+    },
+    'basket': {
+        'id': "08381200cc50e3127206",
+        'name': "Basket"
     }
 }
 
@@ -208,7 +212,7 @@ def on_message(client, userdata, msg):
             client.publish(MQTT_FEED, json.dumps({
                 "error": "Invalid message format",
                 "expected": "device:action",
-                "examples": ["cactus:on", "ananas:off", "all:status"],
+                "examples": ["cactus:on", "ananas:off", "basket:on", "all:status"],
                 "timestamp": time.time()
             }))
             

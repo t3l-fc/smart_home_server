@@ -32,7 +32,7 @@ class ServerComm {
       WiFi.begin(_ssid, _password);
       
       int attempts = 0;
-      while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+      while (WiFi.status() != WL_CONNECTED && attempts < 60) {
         delay(500);
         //Serial.print(".");
         attempts++;
